@@ -2,18 +2,20 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 interface AuthCardProps {
   theme: "light" | "solarised" | "dark";
+  mode: "member" | "admin";
   onClose?: () => void;
 }
 
-export default function AuthCard({ theme, onClose }: AuthCardProps) {
+export default function AuthCard({ theme, mode, onClose }: AuthCardProps) {
   const router = useRouter();
-  const [isAdmin, setIsAdmin] = useState(false);
+  const isAdmin = mode === "admin";
 
   // Form states
   const [email, setEmail] = useState("");
@@ -67,23 +69,6 @@ export default function AuthCard({ theme, onClose }: AuthCardProps) {
     dark: "border-zinc-800 bg-zinc-900/50 focus:bg-zinc-900 text-zinc-100 placeholder-zinc-600 focus:border-zinc-50 focus:ring-zinc-50",
   };
 
-  const switcherBgStyles = {
-    light: "bg-zinc-100",
-    solarised: "bg-slate-950",
-    dark: "bg-zinc-900",
-  };
-
-  const activeTabStyles = {
-    light: "bg-white text-zinc-900 shadow-sm",
-    solarised: "bg-slate-800 text-slate-100 shadow-sm",
-    dark: "bg-zinc-800 text-zinc-50 shadow-sm",
-  };
-
-  const inactiveTabStyles = {
-    light: "text-zinc-500 hover:text-zinc-800",
-    solarised: "text-slate-400 hover:text-slate-200",
-    dark: "text-zinc-500 hover:text-zinc-200",
-  };
 
   const badgeStyles = {
     light: "bg-indigo-500/10 text-indigo-600",
@@ -141,31 +126,6 @@ export default function AuthCard({ theme, onClose }: AuthCardProps) {
       </CardHeader>
 
       <CardContent className="space-y-5">
-        {/* Switcher Button Group */}
-        <div className={`p-1 rounded-xl grid grid-cols-2 gap-1 ${switcherBgStyles[theme]}`}>
-          <button
-            type="button"
-            onClick={() => {
-              setIsAdmin(false);
-              setError("");
-            }}
-            className={`py-2 text-sm font-semibold rounded-lg transition-all ${!isAdmin ? activeTabStyles[theme] : inactiveTabStyles[theme]
-              }`}
-          >
-            Member Portal
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setIsAdmin(true);
-              setError("");
-            }}
-            className={`py-2 text-sm font-semibold rounded-lg transition-all ${isAdmin ? activeTabStyles[theme] : inactiveTabStyles[theme]
-              }`}
-          >
-            Admin Portal
-          </button>
-        </div>
 
         {error && (
           <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-sm font-medium text-red-600 dark:text-red-400">
@@ -220,6 +180,22 @@ export default function AuthCard({ theme, onClose }: AuthCardProps) {
               : "Sign In"}
           </Button>
         </form>
+
+        {/* Portal switch link */}
+        <div className="text-center pt-2">
+          <Link
+            href={isAdmin ? "/login" : "/admin"}
+            className={`text-xs font-medium transition-colors ${
+              theme === "light"
+                ? "text-zinc-400 hover:text-indigo-600"
+                : theme === "solarised"
+                  ? "text-slate-500 hover:text-indigo-400"
+                  : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            {isAdmin ? "← Back to Member Sign In" : "Admin? Sign in here →"}
+          </Link>
+        </div>
       </CardContent>
 
       <CardFooter className={`flex flex-col gap-1 text-center text-xs px-6 pb-6 pt-4 font-medium rounded-b-xl ${footerStyles[theme]}`}>
