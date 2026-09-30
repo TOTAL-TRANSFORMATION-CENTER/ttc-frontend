@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -180,27 +179,13 @@ export default function AuthCard({ theme, mode, onClose }: AuthCardProps) {
               : "Sign In"}
           </Button>
         </form>
-
-        {/* Portal switch link */}
-        <div className="text-center pt-2">
-          <Link
-            href={isAdmin ? "/login" : "/admin"}
-            className={`text-xs font-medium transition-colors ${
-              theme === "light"
-                ? "text-zinc-400 hover:text-indigo-600"
-                : theme === "solarised"
-                  ? "text-slate-500 hover:text-indigo-400"
-                  : "text-zinc-500 hover:text-zinc-300"
-            }`}
-          >
-            {isAdmin ? "← Back to Member Sign In" : "Admin? Sign in here →"}
-          </Link>
-        </div>
       </CardContent>
 
       <CardFooter className={`flex flex-col gap-1 text-center text-xs px-6 pb-6 pt-4 font-medium rounded-b-xl ${footerStyles[theme]}`}>
         <p className="leading-relaxed font-serif italic">
-          &quot;Thank you for being a part of our church family. We are blessed to have you!&quot;
+          &quot;Thank you for being a part of our church family.
+          <br />
+          We are blessed to have you!&quot;
         </p>
       </CardFooter>
     </Card>

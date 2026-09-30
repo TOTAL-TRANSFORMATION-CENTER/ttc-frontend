@@ -14,8 +14,9 @@ const plusJakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "TTC",
-  description: "",
+  title: "Total Transformation Center",
+  description:
+    "A community rooted in faith, united by love, and committed to seeing every life reach its God-given potential.",
 };
 
 export default function RootLayout({
