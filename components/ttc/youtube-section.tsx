@@ -8,6 +8,7 @@ import {
   ExternalLink,
   Calendar,
   X,
+  ArrowRight,
 } from "lucide-react";
 import { useTheme } from "@/components/ttc/theme-provider";
 import {
@@ -17,6 +18,11 @@ import {
   staggerFast,
   viewportOnce,
 } from "@/components/ttc/motion";
+import {
+  REAL_LIVE_SERVICES,
+  REAL_ALL_UPLOADS,
+  YouTubeVideo,
+} from "@/app/api/youtube/route";
 
 export function YouTubeIcon({
   className = "h-5 w-5",
@@ -34,21 +40,62 @@ export function YouTubeIcon({
   );
 }
 
-interface Video {
-  id: string;
-  title: string;
-  publishedAt: string;
-  thumbnail: string;
-  url: string;
-  isLive: boolean;
+// Resilient video thumbnail component that never leaves a blank space
+function VideoThumbnail({
+  src,
+  alt,
+  videoId,
+}: {
+  src: string;
+  alt: string;
+  videoId: string;
+}) {
+  const [imgSrc, setImgSrc] = useState(
+    src || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+  );
+  const [hasError, setHasError] = useState(false);
+
+  return (
+    <div className="relative aspect-video w-full overflow-hidden bg-zinc-900">
+      {!hasError ? (
+        <Image
+          src={imgSrc}
+          alt={alt}
+          fill
+          unoptimized
+          className="object-cover group-hover:scale-105 transition-transform duration-500"
+          onError={() => {
+            if (imgSrc.includes("hqdefault")) {
+              setImgSrc(`https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`);
+            } else if (imgSrc.includes("mqdefault")) {
+              setImgSrc(`https://i.ytimg.com/vi/${videoId}/default.jpg`);
+            } else {
+              setHasError(true);
+            }
+          }}
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-950 via-zinc-900 to-black flex flex-col items-center justify-center p-4 text-center">
+          <div className="h-10 w-10 rounded-full bg-red-600/90 text-white flex items-center justify-center mb-2 shadow-lg">
+            <Play className="h-5 w-5 fill-white translate-x-0.5" />
+          </div>
+          <span className="text-[11px] font-semibold text-zinc-300 line-clamp-2 px-2">
+            {alt}
+          </span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function YouTubeSection() {
   const { theme } = useTheme();
-  const [videos, setVideos] = useState<Video[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
-  const [filter, setFilter] = useState<"all" | "live">("live");
+  // Pre-seed with real curated videos so there is never a blank screen during SSR or hydration
+  const [liveVideos, setLiveVideos] = useState<YouTubeVideo[]>(REAL_LIVE_SERVICES);
+  const [allVideos, setAllVideos] = useState<YouTubeVideo[]>(REAL_ALL_UPLOADS);
+  const [loading, setLoading] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<YouTubeVideo | null>(null);
+  const [filter, setFilter] = useState<"live" | "all">("live");
 
   const t = (light: string, solarised: string, dark: string) =>
     theme === "light" ? light : theme === "solarised" ? solarised : dark;
@@ -60,11 +107,16 @@ export default function YouTubeSection() {
       try {
         const res = await fetch("/api/youtube");
         const data = await res.json();
-        if (mounted && data.success && data.videos) {
-          setVideos(data.videos);
+        if (mounted && data.success) {
+          if (Array.isArray(data.liveVideos) && data.liveVideos.length > 0) {
+            setLiveVideos(data.liveVideos.slice(0, 7));
+          }
+          if (Array.isArray(data.videos) && data.videos.length > 0) {
+            setAllVideos(data.videos.slice(0, 15));
+          }
         }
       } catch (err) {
-        console.error("Failed to load YouTube videos:", err);
+        console.warn("Using real embedded fallback videos:", err);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -76,9 +128,14 @@ export default function YouTubeSection() {
     };
   }, []);
 
-  const liveVideos = videos.filter((v) => v.isLive);
-  const displayedVideos = filter === "live" ? (liveVideos.length > 0 ? liveVideos : videos) : videos;
-  const latestLive = liveVideos[0] || videos[0];
+  // Live sunday service: 7 videos total
+  // Latest 1 is big (latestLive)
+  // Remaining 6 aligned below that
+  const latestLive = liveVideos[0];
+  const remainingLive = liveVideos.slice(1, 7);
+
+  // All uploads: 15 videos total
+  const displayedAll = allVideos.slice(0, 15);
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return "";
@@ -93,6 +150,11 @@ export default function YouTubeSection() {
       return dateStr;
     }
   };
+
+  const channelStreamsUrl =
+    "https://www.youtube.com/@TotalTransformationMinistries/streams";
+  const channelVideosUrl =
+    "https://www.youtube.com/@TotalTransformationMinistries/videos";
 
   return (
     <section
@@ -187,7 +249,7 @@ export default function YouTubeSection() {
                     )
               }`}
             >
-              All Uploads ({videos.length})
+              All Uploads ({allVideos.length})
             </button>
 
             <a
@@ -207,198 +269,319 @@ export default function YouTubeSection() {
           </motion.div>
         </motion.div>
 
-        {/* Featured Latest Live Video Hero Banner (if available) */}
-        {latestLive && (
-          <motion.div
-            variants={fadeUp}
-            initial="hidden"
-            whileInView="visible"
-            viewport={viewportOnce}
-            className={`mb-10 p-6 sm:p-8 rounded-3xl border ${t(
-              "bg-gradient-to-br from-red-50/60 via-white to-indigo-50/40 border-red-100 shadow-xl",
-              "bg-gradient-to-br from-slate-800/90 via-slate-900 to-red-950/30 border-slate-700/80 shadow-2xl",
-              "bg-gradient-to-br from-zinc-900 via-zinc-950 to-black border-zinc-800 shadow-2xl"
-            )}`}
-          >
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-              {/* Thumbnail with big play overlay */}
-              <div
-                onClick={() => setSelectedVideo(latestLive)}
-                className="lg:col-span-7 relative group cursor-pointer aspect-video rounded-2xl overflow-hidden border border-black/10 shadow-lg"
-              >
-                <Image
-                  src={latestLive.thumbnail}
-                  alt={latestLive.title}
-                  fill
-                  unoptimized
-                  className="object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-black/35 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                  <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-red-600 text-white flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform duration-300">
-                    <Play className="h-8 w-8 sm:h-10 sm:w-10 fill-white translate-x-0.5" />
-                  </div>
-                </div>
-
-                <div className="absolute top-4 left-4 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-red-600 text-white shadow-md">
-                  <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
-                  Latest Live Stream
-                </div>
-              </div>
-
-              {/* Video Info */}
-              <div className="lg:col-span-5 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-2">
-                    <Calendar className="h-3.5 w-3.5" />
-                    <span>{formatDate(latestLive.publishedAt)}</span>
-                  </div>
-
-                  <h3
-                    className={`text-xl sm:text-2xl font-serif font-bold mb-4 leading-snug line-clamp-3 ${t(
-                      "text-indigo-950",
-                      "text-white",
-                      "text-zinc-50"
-                    )}`}
-                  >
-                    {latestLive.title}
-                  </h3>
-
-                  <p
-                    className={`text-xs sm:text-sm leading-relaxed mb-6 ${t(
-                      "text-zinc-600",
-                      "text-slate-300",
-                      "text-zinc-400"
-                    )}`}
-                  >
-                    Join our congregation for worship, the anointed Word of God,
-                    and prayers of deliverance and blessing.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-3 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedVideo(latestLive)}
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-bold bg-red-600 text-white hover:bg-red-700 transition-all duration-200 shadow-lg shadow-red-600/30 hover:scale-105 cursor-pointer"
-                  >
-                    <Play className="h-4 w-4 fill-white" />
-                    <span>Watch Now</span>
-                  </button>
-
-                  <a
-                    href={latestLive.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`inline-flex items-center gap-2 px-5 py-3 rounded-full text-sm font-semibold border transition-colors ${t(
-                      "bg-white border-zinc-200 text-zinc-800 hover:bg-zinc-50",
-                      "bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700",
-                      "bg-zinc-900 text-zinc-200 border-zinc-800 hover:bg-zinc-800"
-                    )}`}
-                  >
-                    <span>Watch on YouTube</span>
-                    <ExternalLink className="h-4 w-4 opacity-60" />
-                  </a>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Video Cards Grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3].map((n) => (
-              <div
-                key={n}
-                className={`h-72 rounded-2xl animate-pulse ${t(
-                  "bg-zinc-100",
-                  "bg-slate-800",
-                  "bg-zinc-900"
-                )}`}
-              />
-            ))}
-          </div>
-        ) : (
-          <motion.div
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
-            variants={staggerFast}
-            initial="hidden"
-            whileInView="visible"
-            viewport={viewportOnce}
-          >
-            {displayedVideos.slice(0, 6).map((video) => (
+        {/* ─── LIVE SUNDAY SERVICE TAB (1 big + 6 aligned below = 7 total) ─── */}
+        {filter === "live" && (
+          <div>
+            {/* Featured Latest Live Video Hero Banner (Big Card) */}
+            {latestLive && (
               <motion.div
-                key={video.id}
                 variants={fadeUp}
-                onClick={() => setSelectedVideo(video)}
-                className={`group cursor-pointer flex flex-col justify-between rounded-2xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 ${t(
-                  "bg-white border-zinc-200/80 hover:shadow-xl hover:shadow-zinc-200/50",
-                  "bg-slate-800/80 border-slate-700/60 hover:shadow-xl hover:shadow-slate-900/50",
-                  "bg-zinc-900/80 border-zinc-800/70 hover:shadow-xl hover:shadow-zinc-950/50"
+                initial="hidden"
+                whileInView="visible"
+                viewport={viewportOnce}
+                className={`mb-10 p-6 sm:p-8 rounded-3xl border ${t(
+                  "bg-gradient-to-br from-red-50/60 via-white to-indigo-50/40 border-red-100 shadow-xl",
+                  "bg-gradient-to-br from-slate-800/90 via-slate-900 to-red-950/30 border-slate-700/80 shadow-2xl",
+                  "bg-gradient-to-br from-zinc-900 via-zinc-950 to-black border-zinc-800 shadow-2xl"
                 )}`}
               >
-                <div>
-                  {/* Thumbnail */}
-                  <div className="relative aspect-video w-full overflow-hidden bg-black/10">
-                    <Image
-                      src={video.thumbnail}
-                      alt={video.title}
-                      fill
-                      unoptimized
-                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                  {/* Thumbnail with big play overlay */}
+                  <div
+                    onClick={() => setSelectedVideo(latestLive)}
+                    className="lg:col-span-7 relative group cursor-pointer aspect-video rounded-2xl overflow-hidden border border-black/10 shadow-lg"
+                  >
+                    <VideoThumbnail
+                      src={latestLive.thumbnail}
+                      alt={latestLive.title}
+                      videoId={latestLive.id}
                     />
-                    <div className="absolute inset-0 bg-black/25 group-hover:bg-black/15 transition-colors flex items-center justify-center">
-                      <div className="h-12 w-12 rounded-full bg-red-600/90 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                        <Play className="h-5 w-5 fill-white translate-x-0.5" />
+                    <div className="absolute inset-0 bg-black/35 group-hover:bg-black/20 transition-colors flex items-center justify-center pointer-events-none">
+                      <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-red-600 text-white flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform duration-300">
+                        <Play className="h-8 w-8 sm:h-10 sm:w-10 fill-white translate-x-0.5" />
                       </div>
                     </div>
 
-                    {video.isLive && (
-                      <span className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-600 text-white shadow-md">
-                        <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
-                        Live Service
-                      </span>
-                    )}
+                    <div className="absolute top-4 left-4 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-red-600 text-white shadow-md">
+                      <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
+                      Latest Live Stream
+                    </div>
                   </div>
 
-                  {/* Body */}
-                  <div className="p-4 sm:p-5">
-                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-2">
-                      <Calendar className="h-3 w-3" />
-                      <span>{formatDate(video.publishedAt)}</span>
+                  {/* Video Info */}
+                  <div className="lg:col-span-5 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-2">
+                        <Calendar className="h-3.5 w-3.5" />
+                        <span>{formatDate(latestLive.publishedAt)}</span>
+                      </div>
+
+                      <h3
+                        className={`text-xl sm:text-2xl font-serif font-bold mb-4 leading-snug line-clamp-3 ${t(
+                          "text-indigo-950",
+                          "text-white",
+                          "text-zinc-50"
+                        )}`}
+                      >
+                        {latestLive.title}
+                      </h3>
+
+                      <p
+                        className={`text-xs sm:text-sm leading-relaxed mb-6 ${t(
+                          "text-zinc-600",
+                          "text-slate-300",
+                          "text-zinc-400"
+                        )}`}
+                      >
+                        Join our congregation for worship, the anointed Word of
+                        God, and prayers of deliverance and blessing.
+                      </p>
                     </div>
 
-                    <h4
-                      className={`text-sm font-bold line-clamp-2 leading-snug group-hover:text-red-600 transition-colors ${t(
-                        "text-zinc-900",
-                        "text-slate-100",
-                        "text-zinc-100"
-                      )}`}
-                    >
-                      {video.title}
-                    </h4>
-                  </div>
-                </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedVideo(latestLive)}
+                        className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-bold bg-red-600 text-white hover:bg-red-700 transition-all duration-200 shadow-lg shadow-red-600/30 hover:scale-105 cursor-pointer"
+                      >
+                        <Play className="h-4 w-4 fill-white" />
+                        <span>Watch Now</span>
+                      </button>
 
-                <div
-                  className={`p-4 pt-0 border-t ${t(
-                    "border-zinc-100",
-                    "border-slate-700/60",
-                    "border-zinc-800/60"
-                  )}`}
-                >
-                  <div className="flex items-center justify-between text-xs font-semibold text-red-600 pt-3">
-                    <span className="inline-flex items-center gap-1">
-                      <Play className="h-3 w-3 fill-current" />
-                      Watch Service
-                    </span>
-                    <ExternalLink className="h-3 w-3 opacity-50" />
+                      <a
+                        href={latestLive.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`inline-flex items-center gap-2 px-5 py-3 rounded-full text-sm font-semibold border transition-colors ${t(
+                          "bg-white border-zinc-200 text-zinc-800 hover:bg-zinc-50",
+                          "bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700",
+                          "bg-zinc-900 text-zinc-200 border-zinc-800 hover:bg-zinc-800"
+                        )}`}
+                      >
+                        <span>Watch on YouTube</span>
+                        <ExternalLink className="h-4 w-4 opacity-60" />
+                      </a>
+                    </div>
                   </div>
                 </div>
               </motion.div>
-            ))}
-          </motion.div>
+            )}
+
+            {/* Remaining 6 Live Videos Aligned Below */}
+            {loading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3, 4, 5, 6].map((n) => (
+                  <div
+                    key={n}
+                    className={`h-72 rounded-2xl animate-pulse ${t(
+                      "bg-zinc-100",
+                      "bg-slate-800",
+                      "bg-zinc-900"
+                    )}`}
+                  />
+                ))}
+              </div>
+            ) : (
+              <motion.div
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                variants={staggerFast}
+                initial="hidden"
+                whileInView="visible"
+                viewport={viewportOnce}
+              >
+                {remainingLive.map((video) => (
+                  <motion.div
+                    key={video.id}
+                    variants={fadeUp}
+                    onClick={() => setSelectedVideo(video)}
+                    className={`group cursor-pointer flex flex-col justify-between rounded-2xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 ${t(
+                      "bg-white border-zinc-200/80 hover:shadow-xl hover:shadow-zinc-200/50",
+                      "bg-slate-800/80 border-slate-700/60 hover:shadow-xl hover:shadow-slate-900/50",
+                      "bg-zinc-900/80 border-zinc-800/70 hover:shadow-xl hover:shadow-zinc-950/50"
+                    )}`}
+                  >
+                    <div>
+                      {/* Thumbnail */}
+                      <div className="relative aspect-video w-full overflow-hidden bg-black/10">
+                        <VideoThumbnail
+                          src={video.thumbnail}
+                          alt={video.title}
+                          videoId={video.id}
+                        />
+                        <div className="absolute inset-0 bg-black/25 group-hover:bg-black/15 transition-colors flex items-center justify-center pointer-events-none">
+                          <div className="h-12 w-12 rounded-full bg-red-600/90 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                            <Play className="h-5 w-5 fill-white translate-x-0.5" />
+                          </div>
+                        </div>
+
+                        <span className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-600 text-white shadow-md">
+                          <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                          Live Service
+                        </span>
+                      </div>
+
+                      {/* Body */}
+                      <div className="p-4 sm:p-5">
+                        <div className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-2">
+                          <Calendar className="h-3 w-3" />
+                          <span>{formatDate(video.publishedAt)}</span>
+                        </div>
+
+                        <h4
+                          className={`text-sm font-bold line-clamp-2 leading-snug group-hover:text-red-600 transition-colors ${t(
+                            "text-zinc-900",
+                            "text-slate-100",
+                            "text-zinc-100"
+                          )}`}
+                        >
+                          {video.title}
+                        </h4>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`p-4 pt-0 border-t ${t(
+                        "border-zinc-100",
+                        "border-slate-700/60",
+                        "border-zinc-800/60"
+                      )}`}
+                    >
+                      <div className="flex items-center justify-between text-xs font-semibold text-red-600 pt-3">
+                        <span className="inline-flex items-center gap-1">
+                          <Play className="h-3 w-3 fill-current" />
+                          Watch Service
+                        </span>
+                        <ExternalLink className="h-3 w-3 opacity-50" />
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+          </div>
         )}
+
+        {/* ─── ALL UPLOADS TAB (15 Videos) ─── */}
+        {filter === "all" && (
+          <div>
+            {loading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3, 4, 5, 6].map((n) => (
+                  <div
+                    key={n}
+                    className={`h-72 rounded-2xl animate-pulse ${t(
+                      "bg-zinc-100",
+                      "bg-slate-800",
+                      "bg-zinc-900"
+                    )}`}
+                  />
+                ))}
+              </div>
+            ) : (
+              <motion.div
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                variants={staggerFast}
+                initial="hidden"
+                whileInView="visible"
+                viewport={viewportOnce}
+              >
+                {displayedAll.map((video) => (
+                  <motion.div
+                    key={video.id}
+                    variants={fadeUp}
+                    onClick={() => setSelectedVideo(video)}
+                    className={`group cursor-pointer flex flex-col justify-between rounded-2xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 ${t(
+                      "bg-white border-zinc-200/80 hover:shadow-xl hover:shadow-zinc-200/50",
+                      "bg-slate-800/80 border-slate-700/60 hover:shadow-xl hover:shadow-slate-900/50",
+                      "bg-zinc-900/80 border-zinc-800/70 hover:shadow-xl hover:shadow-zinc-950/50"
+                    )}`}
+                  >
+                    <div>
+                      {/* Thumbnail */}
+                      <div className="relative aspect-video w-full overflow-hidden bg-black/10">
+                        <VideoThumbnail
+                          src={video.thumbnail}
+                          alt={video.title}
+                          videoId={video.id}
+                        />
+                        <div className="absolute inset-0 bg-black/25 group-hover:bg-black/15 transition-colors flex items-center justify-center pointer-events-none">
+                          <div className="h-12 w-12 rounded-full bg-red-600/90 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                            <Play className="h-5 w-5 fill-white translate-x-0.5" />
+                          </div>
+                        </div>
+
+                        {video.isLive && (
+                          <span className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-600 text-white shadow-md">
+                            <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                            Live Service
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Body */}
+                      <div className="p-4 sm:p-5">
+                        <div className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-2">
+                          <Calendar className="h-3 w-3" />
+                          <span>{formatDate(video.publishedAt)}</span>
+                        </div>
+
+                        <h4
+                          className={`text-sm font-bold line-clamp-2 leading-snug group-hover:text-red-600 transition-colors ${t(
+                            "text-zinc-900",
+                            "text-slate-100",
+                            "text-zinc-100"
+                          )}`}
+                        >
+                          {video.title}
+                        </h4>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`p-4 pt-0 border-t ${t(
+                        "border-zinc-100",
+                        "border-slate-700/60",
+                        "border-zinc-800/60"
+                      )}`}
+                    >
+                      <div className="flex items-center justify-between text-xs font-semibold text-red-600 pt-3">
+                        <span className="inline-flex items-center gap-1">
+                          <Play className="h-3 w-3 fill-current" />
+                          Watch Video
+                        </span>
+                        <ExternalLink className="h-3 w-3 opacity-50" />
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+          </div>
+        )}
+
+        {/* ─── SHOW MORE ON YOUTUBE BUTTON ─── */}
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          whileInView="visible"
+          viewport={viewportOnce}
+          className="mt-12 sm:mt-16 text-center"
+        >
+          <a
+            href={filter === "live" ? channelStreamsUrl : channelVideosUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-3 px-8 py-4 rounded-full text-sm sm:text-base font-bold bg-red-600 hover:bg-red-700 text-white shadow-xl shadow-red-600/25 transition-all duration-300 hover:scale-105 group"
+          >
+            <YouTubeIcon className="h-5 w-5 text-white" />
+            <span>
+              {filter === "live"
+                ? "Show More Live Streams on YouTube"
+                : "Show More Uploads on YouTube"}
+            </span>
+            <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+          </a>
+        </motion.div>
       </div>
 
       {/* Video Modal Player */}
