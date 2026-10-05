@@ -100,7 +100,7 @@ export default function YouTubeSection() {
   const t = (light: string, solarised: string, dark: string) =>
     theme === "light" ? light : theme === "solarised" ? solarised : dark;
 
-  useEffect(() => {
+  useEffect(() => { 
     let mounted = true;
 
     async function loadVideos() {
@@ -218,15 +218,14 @@ export default function YouTubeSection() {
             <button
               type="button"
               onClick={() => setFilter("live")}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer ${
-                filter === "live"
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer ${filter === "live"
                   ? "bg-red-600 text-white shadow-md shadow-red-600/20"
                   : t(
-                      "bg-zinc-100 text-zinc-700 hover:bg-zinc-200/80 border border-zinc-200",
-                      "bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700",
-                      "bg-zinc-900 text-zinc-300 hover:bg-zinc-800 border border-zinc-800"
-                    )
-              }`}
+                    "bg-zinc-100 text-zinc-700 hover:bg-zinc-200/80 border border-zinc-200",
+                    "bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700",
+                    "bg-zinc-900 text-zinc-300 hover:bg-zinc-800 border border-zinc-800"
+                  )
+                }`}
             >
               <Radio className="h-3.5 w-3.5" />
               🔴 Live Sunday Services ({liveVideos.length})
@@ -235,19 +234,18 @@ export default function YouTubeSection() {
             <button
               type="button"
               onClick={() => setFilter("all")}
-              className={`px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer ${
-                filter === "all"
+              className={`px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer ${filter === "all"
                   ? t(
-                      "bg-indigo-900 text-white shadow-md",
-                      "bg-indigo-600 text-white shadow-md",
-                      "bg-zinc-100 text-zinc-900 shadow-md"
-                    )
+                    "bg-indigo-900 text-white shadow-md",
+                    "bg-indigo-600 text-white shadow-md",
+                    "bg-zinc-100 text-zinc-900 shadow-md"
+                  )
                   : t(
-                      "bg-zinc-100 text-zinc-700 hover:bg-zinc-200/80 border border-zinc-200",
-                      "bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700",
-                      "bg-zinc-900 text-zinc-300 hover:bg-zinc-800 border border-zinc-800"
-                    )
-              }`}
+                    "bg-zinc-100 text-zinc-700 hover:bg-zinc-200/80 border border-zinc-200",
+                    "bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700",
+                    "bg-zinc-900 text-zinc-300 hover:bg-zinc-800 border border-zinc-800"
+                  )
+                }`}
             >
               All Uploads ({allVideos.length})
             </button>
