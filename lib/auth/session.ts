@@ -1,10 +1,27 @@
+
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
 const SESSION_COOKIE = "ttc_session";
-const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+const SESSION_DURATION_DAYS = Number(
+  process.env.SESSION_DURATION_DAYS ?? "7"
+);
+
+if (
+  !Number.isSafeInteger(SESSION_DURATION_DAYS) ||
+  SESSION_DURATION_DAYS < 1 ||
+  SESSION_DURATION_DAYS > 30
+) {
+  throw new Error(
+    "SESSION_DURATION_DAYS must be an integer between 1 and 30"
+  );
+}
+
+const SESSION_DURATION =
+  SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000;
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -50,7 +67,9 @@ export async function getCurrentSession() {
     !session.user.isActive
   ) {
     if (session) {
-      await prisma.session.delete({ where: { id: session.id } });
+      await prisma.session.delete({
+        where: { id: session.id },
+      });
     }
 
     cookieStore.delete(SESSION_COOKIE);
