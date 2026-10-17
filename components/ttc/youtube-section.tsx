@@ -40,7 +40,6 @@ export function YouTubeIcon({
   );
 }
 
-// Resilient video thumbnail component that never leaves a blank space
 function VideoThumbnail({
   src,
   alt,
@@ -50,28 +49,35 @@ function VideoThumbnail({
   alt: string;
   videoId: string;
 }) {
-  const [imgSrc, setImgSrc] = useState(
-    src || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
-  );
-  const [hasError, setHasError] = useState(false);
+  const [fallbackIndex, setFallbackIndex] = useState(0);
+  const [prevVideoId, setPrevVideoId] = useState(videoId);
+
+  if (videoId !== prevVideoId) {
+    setPrevVideoId(videoId);
+    setFallbackIndex(0);
+  }
+
+  const defaultSrc = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+  const candidates = [
+    src || defaultSrc,
+    `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+    `https://i.ytimg.com/vi/${videoId}/default.jpg`,
+  ];
+
+  const hasExhausted = fallbackIndex >= candidates.length;
+  const currentSrc = !hasExhausted ? candidates[fallbackIndex] : null;
 
   return (
     <div className="relative aspect-video w-full overflow-hidden bg-zinc-900">
-      {!hasError ? (
+      {currentSrc ? (
         <Image
-          src={imgSrc}
+          src={currentSrc}
           alt={alt}
           fill
           unoptimized
           className="object-cover group-hover:scale-105 transition-transform duration-500"
           onError={() => {
-            if (imgSrc.includes("hqdefault")) {
-              setImgSrc(`https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`);
-            } else if (imgSrc.includes("mqdefault")) {
-              setImgSrc(`https://i.ytimg.com/vi/${videoId}/default.jpg`);
-            } else {
-              setHasError(true);
-            }
+            setFallbackIndex((prev) => prev + 1);
           }}
         />
       ) : (
@@ -292,6 +298,7 @@ export default function YouTubeSection() {
                     className="lg:col-span-7 relative group cursor-pointer aspect-video rounded-2xl overflow-hidden border border-black/10 shadow-lg"
                   >
                     <VideoThumbnail
+                      key={latestLive.id}
                       src={latestLive.thumbnail}
                       alt={latestLive.title}
                       videoId={latestLive.id}
@@ -404,6 +411,7 @@ export default function YouTubeSection() {
                       {/* Thumbnail */}
                       <div className="relative aspect-video w-full overflow-hidden bg-black/10">
                         <VideoThumbnail
+                          key={video.id}
                           src={video.thumbnail}
                           alt={video.title}
                           videoId={video.id}
@@ -500,6 +508,7 @@ export default function YouTubeSection() {
                       {/* Thumbnail */}
                       <div className="relative aspect-video w-full overflow-hidden bg-black/10">
                         <VideoThumbnail
+                          key={video.id}
                           src={video.thumbnail}
                           alt={video.title}
                           videoId={video.id}
