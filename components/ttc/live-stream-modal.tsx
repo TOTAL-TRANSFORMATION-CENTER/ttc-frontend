@@ -163,7 +163,8 @@ export default function LiveStreamModal() {
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in duration-300"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/40 animate-in fade-in duration-300"
+      style={{ backdropFilter: "blur(2px)" }}
       onClick={handleMinimize}
     >
       <div

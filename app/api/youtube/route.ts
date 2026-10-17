@@ -488,9 +488,59 @@ export async function GET(req: NextRequest) {
           liveHtml.includes('"status":"LIVE"');
 
         if (isActuallyLive) {
-          const videoMatch = liveHtml.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+          // Extract the ACTUAL live video ID using multiple strategies (in priority order)
+          // to avoid grabbing a random recommended/sidebar video ID
+          let videoId: string | null = null;
+
+          // Strategy 1: canonical URL (most reliable — YouTube sets this to the actual video page)
+          const canonicalMatch = liveHtml.match(
+            /<link[^>]+rel="canonical"[^>]+href="https?:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})"/
+          );
+          if (canonicalMatch) videoId = canonicalMatch[1];
+
+          // Strategy 2: og:url or og:video:url meta tag
+          if (!videoId) {
+            const ogMatch = liveHtml.match(
+              /<meta[^>]+(?:property|name)="og:(?:url|video:url)"[^>]+content="[^"]*(?:watch\?v=|embed\/)([a-zA-Z0-9_-]{11})[^"]*"/
+            );
+            if (ogMatch) videoId = ogMatch[1];
+          }
+
+          // Strategy 3: videoId found in the same JSON context as "isLiveNow":true
+          // Look for videoId within ~200 chars before "isLiveNow":true
+          if (!videoId) {
+            const liveContextMatch = liveHtml.match(
+              /"videoId":"([a-zA-Z0-9_-]{11})"[^}]{0,300}"isLiveNow":true/
+            );
+            if (liveContextMatch) videoId = liveContextMatch[1];
+          }
+
+          // Strategy 4: videoId right after "isLiveNow":true (reverse proximity)
+          if (!videoId) {
+            const reverseLiveMatch = liveHtml.match(
+              /"isLiveNow":true[^}]{0,300}"videoId":"([a-zA-Z0-9_-]{11})"/
+            );
+            if (reverseLiveMatch) videoId = reverseLiveMatch[1];
+          }
+
+          // Strategy 5: URL in the player's currentVideoEndpoint or watchEndpoint
+          if (!videoId) {
+            const endpointMatch = liveHtml.match(
+              /"(?:currentVideoEndpoint|watchEndpoint)"[^}]*"videoId":"([a-zA-Z0-9_-]{11})"/
+            );
+            if (endpointMatch) videoId = endpointMatch[1];
+          }
+
+          // Strategy 6 (last resort): the embed URL from a player embed config
+          if (!videoId) {
+            const embedMatch = liveHtml.match(
+              /embed\/([a-zA-Z0-9_-]{11})/
+            );
+            if (embedMatch) videoId = embedMatch[1];
+          }
           const titleMatch = liveHtml.match(/<title>([^<]+)<\/title>/);
-          const videoId = videoMatch ? videoMatch[1] : finalLiveVideos[0]?.id;
+          // videoId already set by Strategies 1-6 above; fall back to first live video id
+          videoId = videoId ?? finalLiveVideos[0]?.id ?? null;
           const title = titleMatch
             ? titleMatch[1].replace(/ - YouTube$/, "").trim()
             : "Live Service - Total Transformation Ministries";

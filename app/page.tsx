@@ -792,7 +792,7 @@ export default function Home() {
                         <Phone className="h-5 w-5" />
                       </div>
                       <div>
-                        <span className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                        <span className={`block text-[11px] font-medium ${t("text-zinc-500", "text-slate-400", "text-zinc-400")}`}>
                           Primary Contact
                         </span>
                         <span className="text-sm font-bold tracking-tight">
@@ -813,7 +813,7 @@ export default function Home() {
                         <Phone className="h-5 w-5" />
                       </div>
                       <div>
-                        <span className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                        <span className={`block text-[11px] font-medium ${t("text-zinc-500", "text-slate-400", "text-zinc-400")}`}>
                           Alternate Line
                         </span>
                         <span className="text-sm font-bold tracking-tight">
@@ -836,7 +836,7 @@ export default function Home() {
                         <Mail className="h-5 w-5" />
                       </div>
                       <div>
-                        <span className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                        <span className={`block text-[11px] font-medium ${t("text-zinc-500", "text-slate-400", "text-zinc-400")}`}>
                           Email Address
                         </span>
                         <span className="text-sm font-bold tracking-tight">
@@ -857,10 +857,18 @@ export default function Home() {
                         <MapPin className="h-5 w-5" />
                       </div>
                       <div>
-                        <span className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-0.5">
+                        <span className={`block text-[11px] font-medium mb-0.5 ${t(
+                          "text-zinc-500",
+                          "text-slate-400",
+                          "text-zinc-400"
+                        )}`}>
                           Church Address
                         </span>
-                        <p className="text-xs leading-relaxed font-medium text-zinc-800 dark:text-zinc-200">
+                        <p className={`text-xs leading-relaxed font-medium ${t(
+                          "text-zinc-800",
+                          "text-slate-200",
+                          "text-zinc-200"
+                        )}`}>
                           No: 1, Athikadavu Road, (Opp. Subbu Hospital), Sreenivasa Nagar,
                           Veerapandi Pirivu, Periyanaicken Palayam, Coimbatore - 641019.
                         </p>
@@ -892,7 +900,7 @@ export default function Home() {
                         >
                           Total Transformation Center
                         </h4>
-                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                        <span className={`text-[11px] ${t("text-zinc-500", "text-slate-400", "text-zinc-400")}`}>
                           Veerapandi Pirivu, Coimbatore
                         </span>
                       </div>
