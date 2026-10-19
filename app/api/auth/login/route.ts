@@ -3,8 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/auth";
 import { loginSchema } from "@/lib/validations/auth";
 import { createSession } from "@/lib/auth/session";
+import { handleCorsPreflight } from "@/lib/cors";
 
-export const runtime = "nodejs";
+export const OPTIONS = handleCorsPreflight;
 
 export async function POST(request: Request) {
   try {
@@ -32,17 +33,43 @@ export async function POST(request: Request) {
       );
     }
 
-    const { phone, password } = result.data;
+    const phone = (
+      result.data.phone ||
+      result.data.identifier ||
+      ""
+    ).trim();
 
-    const user = await prisma.user.findUnique({
-      where: { phone },
+    const { password } = result.data;
+
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { phone },
+          {
+            phone: phone.startsWith("+")
+              ? phone.slice(1)
+              : `+${phone}`,
+          },
+          {
+            phone: phone.startsWith("+91")
+              ? phone.slice(3)
+              : `+91${phone}`,
+          },
+        ],
+      },
     });
 
-    if (
-      !user ||
-      !user.isActive ||
-      !(await verifyPassword(password, user.passwordHash))
-    ) {
+    // DEBUG 1: Check whether the phone number matched a user.
+    console.log("LOGIN DEBUG:", {
+      userFound: Boolean(user),
+      userActive: user?.isActive,
+      storedPhone: user?.phone,
+    });
+
+    // DEBUG 2: Check whether the account exists and is active.
+    if (!user) {
+      console.log("LOGIN FAILED: User not found");
+
       return NextResponse.json(
         {
           success: false,
@@ -52,6 +79,39 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!user.isActive) {
+      console.log("LOGIN FAILED: Account is inactive");
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid phone number or password",
+        },
+        { status: 401 }
+      );
+    }
+
+    // DEBUG 3: Check the password against the stored hash.
+    const passwordValid = await verifyPassword(
+      password,
+      user.passwordHash
+    );
+
+    console.log("LOGIN DEBUG: Password valid =", passwordValid);
+
+    if (!passwordValid) {
+      console.log("LOGIN FAILED: Password does not match");
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid phone number or password",
+        },
+        { status: 401 }
+      );
+    }
+
+    // Login passed. Create the session.
     await createSession(user.id);
 
     return NextResponse.json(

@@ -3,8 +3,9 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
 import { signupSchema } from "@/lib/validations/auth";
+import { handleCorsPreflight } from "@/lib/cors";
 
-export const runtime = "nodejs";
+export const OPTIONS = handleCorsPreflight;
 
 export async function POST(request: Request) {
   try {

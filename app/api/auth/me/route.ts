@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentSession } from "@/lib/auth/session";
 
-export const runtime = "nodejs";
-
 export async function GET() {
   try {
     const session = await getCurrentSession();

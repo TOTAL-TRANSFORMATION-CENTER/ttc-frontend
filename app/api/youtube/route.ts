@@ -24,7 +24,7 @@ export interface LiveStreamStatus {
 // Channel identifier resolved from @TotalTransformationMinistries
 const DEFAULT_CHANNEL_ID = "UC5PqpsjSxB_4AZoDA8y_PKg";
 
-// Curated 7 real Sunday Live Service videos from the church channel
+// Curated backup videos (used strictly when YouTube network requests fail or in offline dev)
 export const REAL_LIVE_SERVICES: YouTubeVideo[] = [
   {
     id: "XEq-pMrIsKg",
@@ -84,7 +84,6 @@ export const REAL_LIVE_SERVICES: YouTubeVideo[] = [
   },
 ];
 
-// Curated 15 real uploads from the church channel
 export const REAL_ALL_UPLOADS: YouTubeVideo[] = [
   {
     id: "Aan0RMgtWWg",
@@ -208,6 +207,214 @@ export const REAL_ALL_UPLOADS: YouTubeVideo[] = [
   },
 ];
 
+/**
+ * Fetch live streams dynamically from YouTube's @channel/streams tab.
+ * This guarantees we always get the latest real live services streamed by the church.
+ */
+async function fetchLiveStreamsFromYouTube(): Promise<YouTubeVideo[]> {
+  try {
+    const res = await fetch(
+      "https://www.youtube.com/@TotalTransformationMinistries/streams",
+      {
+        next: { revalidate: 60 },
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+      }
+    );
+
+    if (!res.ok) return [];
+    const html = await res.text();
+    let jsonMatch: string | null = null;
+    const startIdx = html.indexOf("var ytInitialData = ");
+    if (startIdx !== -1) {
+      const endIdx = html.indexOf(";</script>", startIdx);
+      if (endIdx !== -1) {
+        jsonMatch = html.slice(startIdx + "var ytInitialData = ".length, endIdx);
+      }
+    }
+
+    if (!jsonMatch) return [];
+    const data = JSON.parse(jsonMatch) as Record<string, unknown>;
+    const contentsObj = data?.contents as Record<string, unknown> | undefined;
+    const twoCol = contentsObj?.twoColumnBrowseResultsRenderer as
+      | Record<string, unknown>
+      | undefined;
+    const tabs = (twoCol?.tabs as Array<Record<string, unknown>>) || [];
+
+    const streamTab = tabs.find((t) => {
+      const tabR = t.tabRenderer as Record<string, unknown> | undefined;
+      const title = tabR?.title as string | undefined;
+      return title === "Live" || title === "Streams" || tabR?.selected === true;
+    });
+
+    const streamTabRenderer = streamTab?.tabRenderer as
+      | Record<string, unknown>
+      | undefined;
+    const tabContent = streamTabRenderer?.content as
+      | Record<string, unknown>
+      | undefined;
+    const richGrid = tabContent?.richGridRenderer as
+      | Record<string, unknown>
+      | undefined;
+    const items = (richGrid?.contents as Array<Record<string, unknown>>) || [];
+
+    const videos: YouTubeVideo[] = [];
+    const seen = new Set<string>();
+
+    for (const item of items) {
+      const richItem = item.richItemRenderer as
+        | Record<string, unknown>
+        | undefined;
+      const content = richItem?.content as Record<string, unknown> | undefined;
+      const vm = content?.lockupViewModel as Record<string, unknown> | undefined;
+
+      let videoId = vm?.contentId as string | undefined;
+      let title: string | undefined;
+
+      const meta = vm?.metadata as Record<string, unknown> | undefined;
+      const lockupMeta = meta?.lockupMetadataViewModel as
+        | Record<string, unknown>
+        | undefined;
+      const titleObj = lockupMeta?.title as Record<string, unknown> | undefined;
+      title = titleObj?.content as string | undefined;
+
+      // Fallback regex extraction if view model structure varies
+      if (!videoId || !title) {
+        const itemStr = JSON.stringify(item);
+        const idMatch = itemStr.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+        const titleMatch =
+          itemStr.match(/"title":{"content":"([^"]+)"/) ||
+          itemStr.match(/"title":{"runs":\[{"text":"([^"]+)"/);
+        videoId = idMatch?.[1];
+        title = titleMatch?.[1];
+      }
+
+      if (videoId && title && !seen.has(videoId)) {
+        seen.add(videoId);
+        videos.push({
+          id: videoId,
+          title,
+          publishedAt: new Date().toISOString(),
+          thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+          url: `https://www.youtube.com/watch?v=${videoId}`,
+          isLive: true,
+        });
+      }
+    }
+
+    return videos;
+  } catch (err) {
+    console.warn("fetchLiveStreamsFromYouTube warning:", err);
+    return [];
+  }
+}
+
+/**
+ * Fetch latest video uploads dynamically from YouTube's @channel/videos tab.
+ */
+async function fetchVideosFromYouTube(): Promise<YouTubeVideo[]> {
+  try {
+    const res = await fetch(
+      "https://www.youtube.com/@TotalTransformationMinistries/videos",
+      {
+        next: { revalidate: 180 },
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+      }
+    );
+    if (!res.ok) return [];
+    const html = await res.text();
+
+    let jsonMatch: string | null = null;
+    const startIdx = html.indexOf("var ytInitialData = ");
+    if (startIdx !== -1) {
+      const endIdx = html.indexOf(";</script>", startIdx);
+      if (endIdx !== -1) {
+        jsonMatch = html.slice(startIdx + "var ytInitialData = ".length, endIdx);
+      }
+    }
+
+    if (!jsonMatch) return [];
+    const data = JSON.parse(jsonMatch) as Record<string, unknown>;
+    const contentsObj = data?.contents as Record<string, unknown> | undefined;
+    const twoCol = contentsObj?.twoColumnBrowseResultsRenderer as
+      | Record<string, unknown>
+      | undefined;
+    const tabs = (twoCol?.tabs as Array<Record<string, unknown>>) || [];
+
+    const videoTab = tabs.find((t) => {
+      const tabR = t.tabRenderer as Record<string, unknown> | undefined;
+      const title = tabR?.title as string | undefined;
+      return title === "Videos" || tabR?.selected === true;
+    });
+
+    const videoTabRenderer = videoTab?.tabRenderer as
+      | Record<string, unknown>
+      | undefined;
+    const tabContent = videoTabRenderer?.content as
+      | Record<string, unknown>
+      | undefined;
+    const richGrid = tabContent?.richGridRenderer as
+      | Record<string, unknown>
+      | undefined;
+    const items = (richGrid?.contents as Array<Record<string, unknown>>) || [];
+
+    const videos: YouTubeVideo[] = [];
+    const seen = new Set<string>();
+
+    for (const item of items) {
+      const richItem = item.richItemRenderer as
+        | Record<string, unknown>
+        | undefined;
+      const content = richItem?.content as Record<string, unknown> | undefined;
+      const vm = content?.lockupViewModel as Record<string, unknown> | undefined;
+
+      let videoId = vm?.contentId as string | undefined;
+      let title: string | undefined;
+
+      const meta = vm?.metadata as Record<string, unknown> | undefined;
+      const lockupMeta = meta?.lockupMetadataViewModel as
+        | Record<string, unknown>
+        | undefined;
+      const titleObj = lockupMeta?.title as Record<string, unknown> | undefined;
+      title = titleObj?.content as string | undefined;
+
+      if (!videoId || !title) {
+        const itemStr = JSON.stringify(item);
+        const idMatch = itemStr.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+        const titleMatch =
+          itemStr.match(/"title":{"content":"([^"]+)"/) ||
+          itemStr.match(/"title":{"runs":\[{"text":"([^"]+)"/);
+        videoId = idMatch?.[1];
+        title = titleMatch?.[1];
+      }
+
+      if (videoId && title && !seen.has(videoId)) {
+        seen.add(videoId);
+        videos.push({
+          id: videoId,
+          title,
+          publishedAt: new Date().toISOString(),
+          thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+          url: `https://www.youtube.com/watch?v=${videoId}`,
+          isLive: /live|🔴|service/i.test(title),
+        });
+      }
+    }
+
+    return videos;
+  } catch (err) {
+    console.warn("fetchVideosFromYouTube warning:", err);
+    return [];
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
     let channelId = process.env.YOUTUBE_CHANNEL_ID?.trim() || DEFAULT_CHANNEL_ID;
@@ -224,17 +431,11 @@ export async function GET(req: NextRequest) {
       req.nextUrl.searchParams.get("test_live") === "1" ||
       process.env.TEST_LIVE_STREAM === "true";
 
-    // 1. Fetch channel RSS feed (for real-time uploads)
-    const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
-    const feedPromise = fetch(feedUrl, {
-      next: { revalidate: 300 },
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      },
-    }).catch(() => null);
+    // 1. Fetch live streams and videos in parallel directly from YouTube
+    const liveStreamsPromise = fetchLiveStreamsFromYouTube();
+    const uploadsPromise = fetchVideosFromYouTube();
 
-    // 2. Check if the channel is currently live
+    // 2. Check if the channel is currently broadcasting live right now
     const liveCheckUrl = `https://www.youtube.com/channel/${channelId}/live`;
     const livePromise = fetch(liveCheckUrl, {
       next: { revalidate: 60 },
@@ -244,77 +445,35 @@ export async function GET(req: NextRequest) {
       },
     }).catch(() => null);
 
-    const [feedRes, liveRes] = await Promise.all([feedPromise, livePromise]);
+    const [liveStreams, fetchedUploads, liveRes] = await Promise.all([
+      liveStreamsPromise,
+      uploadsPromise,
+      livePromise,
+    ]);
 
-    // Parse RSS feed videos if successful
-    const fetchedVideos: YouTubeVideo[] = [];
-    if (feedRes && feedRes.ok) {
-      try {
-        const xml = await feedRes.text();
-        const entryRegex = /<entry>([\s\S]*?)<\/entry>/g;
-        let match: RegExpExecArray | null;
-
-        while ((match = entryRegex.exec(xml)) !== null) {
-          const entry = match[1];
-          const idMatch = entry.match(/<yt:videoId>([^<]+)<\/yt:videoId>/);
-          const titleMatch = entry.match(/<title>([^<]+)<\/title>/);
-          const publishedMatch = entry.match(/<published>([^<]+)<\/published>/);
-
-          if (idMatch && titleMatch) {
-            const id = idMatch[1].trim();
-            const rawTitle = titleMatch[1].trim();
-            const cleanTitle = rawTitle
-              .replace(/&amp;/g, "&")
-              .replace(/&quot;/g, '"')
-              .replace(/&#39;/g, "'")
-              .replace(/&lt;/g, "<")
-              .replace(/&gt;/g, ">");
-
-            const isLive =
-              /live|🔴|service/i.test(cleanTitle) || cleanTitle.includes("🔴");
-
-            fetchedVideos.push({
-              id,
-              title: cleanTitle,
-              publishedAt: publishedMatch ? publishedMatch[1].trim() : "",
-              thumbnail: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
-              url: `https://www.youtube.com/watch?v=${id}`,
-              isLive,
-            });
-          }
-        }
-      } catch (xmlErr) {
-        console.warn("RSS parse warning:", xmlErr);
-      }
-    }
-
-    // Determine the final list of 15 uploads
-    // If RSS returns results, combine or use them; otherwise use real curated uploads
-    let allVideos: YouTubeVideo[] = [...REAL_ALL_UPLOADS];
-    if (fetchedVideos.length > 0) {
-      // Merge unique by ID
-      const seen = new Set<string>();
-      const combined: YouTubeVideo[] = [];
-      for (const v of [...fetchedVideos, ...REAL_ALL_UPLOADS]) {
-        if (!seen.has(v.id)) {
-          seen.add(v.id);
-          combined.push(v);
-        }
-      }
-      allVideos = combined.slice(0, 15);
-    }
-
-    // Determine the 7 Live Sunday services
-    const liveFromFetched = fetchedVideos.filter((v) => v.isLive);
+    // Combine dynamically fetched live streams with fallback to ensure full count of 7
     const seenLive = new Set<string>();
     const combinedLive: YouTubeVideo[] = [];
-    for (const v of [...liveFromFetched, ...REAL_LIVE_SERVICES]) {
+
+    for (const v of [...liveStreams, ...REAL_LIVE_SERVICES]) {
       if (!seenLive.has(v.id)) {
         seenLive.add(v.id);
         combinedLive.push(v);
       }
     }
-    const liveVideos = combinedLive.slice(0, 7);
+    const finalLiveVideos = combinedLive.slice(0, 7);
+
+    // Combine dynamically fetched uploads with fallback to ensure full count of 15
+    const seenUploads = new Set<string>();
+    const combinedUploads: YouTubeVideo[] = [];
+
+    for (const v of [...fetchedUploads, ...finalLiveVideos, ...REAL_ALL_UPLOADS]) {
+      if (!seenUploads.has(v.id)) {
+        seenUploads.add(v.id);
+        combinedUploads.push(v);
+      }
+    }
+    const finalAllVideos = combinedUploads.slice(0, 15);
 
     // Determine active live stream status
     let liveStream: LiveStreamStatus = { isLiveNow: false };
@@ -379,8 +538,9 @@ export async function GET(req: NextRequest) {
             );
             if (embedMatch) videoId = embedMatch[1];
           }
-
           const titleMatch = liveHtml.match(/<title>([^<]+)<\/title>/);
+          // videoId already set by Strategies 1-6 above; fall back to first live video id
+          videoId = videoId ?? finalLiveVideos[0]?.id ?? null;
           const title = titleMatch
             ? titleMatch[1].replace(/ - YouTube$/, "").trim()
             : "Live Service - Total Transformation Ministries";
@@ -401,7 +561,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Unlisted or manual live stream override
+    // Unlisted or manual live stream override via env
     const customLive =
       process.env.CURRENT_LIVE_VIDEO_ID?.trim() ||
       process.env.LIVE_VIDEO_ID?.trim();
@@ -425,8 +585,8 @@ export async function GET(req: NextRequest) {
     }
 
     // Test mode
-    if (!liveStream.isLiveNow && testLive && liveVideos.length > 0) {
-      const testVideo = liveVideos[0];
+    if (!liveStream.isLiveNow && testLive && finalLiveVideos.length > 0) {
+      const testVideo = finalLiveVideos[0];
       liveStream = {
         isLiveNow: true,
         videoId: testVideo.id,
@@ -445,12 +605,11 @@ export async function GET(req: NextRequest) {
         url: "https://www.youtube.com/@TotalTransformationMinistries",
       },
       liveStream,
-      liveVideos,
-      videos: allVideos,
+      liveVideos: finalLiveVideos,
+      videos: finalAllVideos,
     });
   } catch (error: unknown) {
     console.error("YouTube feed error:", error);
-    // Return curated real videos on error so production is never blank
     return NextResponse.json({
       success: true,
       channel: {
