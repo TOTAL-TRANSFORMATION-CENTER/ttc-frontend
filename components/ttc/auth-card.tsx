@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Loader2, Sparkles, CheckCircle2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, Sparkles, CheckCircle2, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,20 @@ export default function AuthCard({ theme, mode, onClose }: AuthCardProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isAdmin) {
+      if (password !== "12345") {
+        setError("Incorrect admin password.");
+        return;
+      }
+      setIsLoading(true);
+      setError("");
+      setSuccessMsg("Authenticated. Opening admin dashboard...");
+      setTimeout(() => {
+        router.push("/admin/dashboard");
+      }, 300);
+      return;
+    }
+
     if (!identifier.trim() || !password) {
       setError("Please enter both your phone number or email and password.");
       return;
@@ -265,6 +279,11 @@ export default function AuthCard({ theme, mode, onClose }: AuthCardProps) {
               <span className="inline-flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4" />
                 Signed In
+              </span>
+            ) : isAdmin ? (
+              <span className="inline-flex items-center gap-1.5">
+                <ShieldCheck className="h-4 w-4" />
+                Sign In to Admin Dashboard
               </span>
             ) : (
               "Sign In to Dashboard"
