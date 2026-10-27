@@ -15,15 +15,9 @@ import {
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable, ColumnDef } from "@/components/ui/data-table";
 import { Textarea } from "@/components/ui/textarea";
+import { BannerAlert } from "@/components/ui/banner-alert";
 import { calculateYears, cn } from "@/lib/utils";
 import {
   Activity,
@@ -51,47 +45,18 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useState } from "react";
-
-export interface MemberFormData {
-  id: string;
-  name: string;
-  isHead: boolean;
-  age: number | "";
-  gender: "MALE" | "FEMALE" | "OTHER" | "";
-  bloodGroup: string;
-  dob: string;
-  status: "ACTIVE" | "INACTIVE";
-  inactiveReason: string;
-  maritalStatus: "MARRIED" | "UNMARRIED" | "DIVORCED" | "WIDOWED" | "";
-  dateOfMarriage?: string;
-  yearsOfMarriage?: number | "";
-  isLookingForAlliance?: boolean;
-  occupation: string;
-  role: string;
-  phone: string;
-  email: string;
-}
-
-const emptyMemberForm: MemberFormData = {
-  id: "",
-  name: "",
-  isHead: false,
-  age: "",
-  gender: "",
-  bloodGroup: "",
-  dob: "",
-  status: "ACTIVE",
-  inactiveReason: "",
-  maritalStatus: "",
-  dateOfMarriage: "",
-  yearsOfMarriage: "",
-  isLookingForAlliance: false,
-  occupation: "",
-  role: "",
-  phone: "",
-  email: "",
-};
+import React, { useState, useMemo } from "react";
+import { type MemberFormData, emptyMemberForm, type Status } from "@/types";
+import { useCreateFamily } from "@/hooks/use-families";
+import { AgeBadge } from "@/components/ttc/age-badge";
+import { StatusBadge } from "@/components/ttc/status-badge";
+import {
+  BLOOD_GROUPS,
+  CHURCH_ROLES,
+  GENDERS,
+  MARITAL_STATUSES,
+  STATUS_OPTIONS,
+} from "@/constants";
 
 export default function AddFamilyPage() {
   const { theme } = useTheme();
@@ -126,10 +91,181 @@ export default function AddFamilyPage() {
   const otherMemberIsHead = members.some((m) => m.isHead && m.id !== editingMemberId);
   const showHeadCheckbox = !otherMemberIsHead;
 
-  // ─── PAGE VALIDATION & SUBMISSION ───
+  // ─── PAGE VALIDATION & SUBMISSION (TanStack Query Mutation) ───
+  const createFamilyMutation = useCreateFamily();
   const [validationError, setValidationError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmitting = createFamilyMutation.isPending;
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  const addMemberColumns: ColumnDef<MemberFormData>[] = useMemo(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Member Name",
+        headerClassName: "font-bold text-xs",
+        className: "font-semibold text-sm",
+        cell: (member) => (
+          <div>
+            <div className="flex items-center gap-2">
+              <span>{member.name}</span>
+              {member.isHead && (
+                <Badge className="bg-amber-500 text-zinc-950 font-bold text-[10px] flex items-center gap-1 hover:bg-amber-400">
+                  <Crown className="h-2.5 w-2.5" /> Head
+                </Badge>
+              )}
+            </div>
+            {member.phone && (
+              <span
+                className={`text-[11px] block mt-0.5 ${t(
+                  "text-zinc-500",
+                  "text-slate-400",
+                  "text-zinc-400"
+                )}`}
+              >
+                {member.phone}
+              </span>
+            )}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "role",
+        header: "Role",
+        headerClassName: "font-bold text-xs",
+        className: "text-xs",
+        cell: (member) => (
+          <span
+            className={`px-2 py-0.5 rounded-md font-medium ${t(
+              "bg-zinc-100 text-zinc-700",
+              "bg-slate-800 text-slate-300",
+              "bg-zinc-800 text-zinc-300"
+            )}`}
+          >
+            {member.role || "Member"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "age",
+        header: "Age / Category",
+        headerClassName: "font-bold text-xs",
+        cell: (member) => <AgeBadge age={member.age} showAge />,
+      },
+      {
+        accessorKey: "gender",
+        header: "Gender",
+        headerClassName: "font-bold text-xs",
+        className: "text-xs capitalize",
+        cell: (member) => member.gender?.toLowerCase() || "—",
+      },
+      {
+        accessorKey: "bloodGroup",
+        header: "Blood Group",
+        headerClassName: "font-bold text-xs hidden sm:table-cell",
+        className: "text-xs hidden sm:table-cell font-mono",
+        cell: (member) => (
+          <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400">
+            <Droplet className="h-3 w-3 fill-red-500/20" />
+            {member.bloodGroup || "—"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "maritalStatus",
+        header: "Marital Status",
+        headerClassName: "font-bold text-xs hidden md:table-cell",
+        className: "text-xs hidden md:table-cell",
+        cell: (member) => (
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="capitalize">
+                {member.maritalStatus ? member.maritalStatus.toLowerCase() : "—"}
+              </span>
+              {member.maritalStatus === "UNMARRIED" && member.isLookingForAlliance && (
+                <Badge
+                  variant="outline"
+                  title="Looking for matrimonial alliance"
+                  className="text-[10px] font-semibold px-2 py-0.5 h-5 bg-pink-500/15 text-pink-700 dark:text-pink-300 border-pink-300 dark:border-pink-500/40 inline-flex items-center gap-1 leading-none shadow-2xs"
+                >
+                  <Heart className="h-2.5 w-2.5 text-pink-500 fill-pink-500/30 shrink-0" />
+                  Alliance
+                </Badge>
+              )}
+            </div>
+            {member.maritalStatus === "MARRIED" && member.dateOfMarriage && (
+              <span
+                className={`text-[10px] font-mono leading-none ${t(
+                  "text-zinc-500",
+                  "text-slate-400",
+                  "text-zinc-400"
+                )}`}
+              >
+                DOM: {member.dateOfMarriage}{" "}
+                {calculateYears(member.dateOfMarriage) !== ""
+                  ? `(${calculateYears(member.dateOfMarriage)} yrs)`
+                  : ""}
+              </span>
+            )}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "occupation",
+        header: "Occupation",
+        headerClassName: "font-bold text-xs hidden lg:table-cell",
+        className: "text-xs hidden lg:table-cell",
+        cell: (member) =>
+          member.occupation || (
+            <span className={t("text-zinc-400", "text-slate-500", "text-zinc-500")}>
+              —
+            </span>
+          ),
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        headerClassName: "font-bold text-xs",
+        cell: (member) => <StatusBadge status={member.status} />,
+      },
+      {
+        key: "actions",
+        header: "Actions",
+        align: "right",
+        headerClassName: "font-bold text-xs text-right",
+        className: "text-right",
+        cell: (member) => (
+          <div className="flex items-center justify-end gap-1">
+            <button
+              type="button"
+              onClick={() => handleOpenEditMember(member)}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${t(
+                "hover:bg-zinc-100 text-zinc-600",
+                "hover:bg-slate-800 text-slate-300",
+                "hover:bg-zinc-800 text-zinc-300"
+              )}`}
+              title="Edit Member"
+            >
+              <Edit2 className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDeleteMember(member.id)}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer text-zinc-400 hover:text-red-500 ${t(
+                "hover:bg-red-50",
+                "hover:bg-red-950/30",
+                "hover:bg-red-950/30"
+              )}`}
+              title="Remove Member"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ),
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [theme]
+  );
 
   // Open modal for adding a new member
   const handleOpenAddMember = () => {
@@ -264,7 +400,7 @@ export default function AddFamilyPage() {
   };
 
   // Handle Create Family
-  const handleCreateFamily = (e: React.FormEvent) => {
+  const handleCreateFamily = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!address.trim()) {
       setValidationError("Permanent / Residential Address is required.");
@@ -284,13 +420,42 @@ export default function AddFamilyPage() {
       return;
     }
 
-    setIsSubmitting(true);
     setValidationError("");
 
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      await createFamilyMutation.mutateAsync({
+        location,
+        region,
+        address,
+        members: members.map((m) => ({
+          name: m.name,
+          isHead: m.isHead,
+          age: m.age ? Number(m.age) : null,
+          gender: m.gender || null,
+          bloodGroup: m.bloodGroup || null,
+          dob: m.dob || null,
+          status: m.status,
+          inactiveReason: m.inactiveReason || null,
+          maritalStatus: m.maritalStatus || null,
+          dateOfMarriage: m.dateOfMarriage || null,
+          isLookingForAlliance: m.isLookingForAlliance ?? false,
+          occupation: m.occupation || null,
+          role: "MEMBER",
+          churchRole: m.role || null,
+          phone: m.phone || null,
+          email: m.email || null,
+        })),
+      });
+
       setShowSuccessModal(true);
-    }, 600);
+    } catch (error) {
+      console.error("Create family error:", error);
+      setValidationError(
+        error instanceof Error
+          ? error.message
+          : "Failed to create family. Please check your connection and try again."
+      );
+    }
   };
 
   // Auto calculate age from DOB
@@ -359,10 +524,12 @@ export default function AddFamilyPage() {
 
       {/* ─── Validation Error Banner ─── */}
       {validationError && (
-        <div className="p-4 rounded-xl border border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400 text-xs font-semibold flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>{validationError}</span>
-        </div>
+        <BannerAlert
+          variant="error"
+          title="Validation Error"
+          message={validationError}
+          onClose={() => setValidationError("")}
+        />
       )}
 
       {/* ─── CARD 1: FAMILY COMMON DETAILS (TOP) ─── */}
@@ -505,9 +672,6 @@ export default function AddFamilyPage() {
                 {members.length} {members.length === 1 ? "member" : "members"} added
               </span>
             </h2>
-            <p className={`text-xs mt-0.5 ${t("text-zinc-500", "text-slate-400", "text-zinc-400")}`}>
-              At least one member is required to create a family.
-            </p>
           </div>
 
           {/* Add member button - only shown after at least one member is added */}
@@ -547,168 +711,11 @@ export default function AddFamilyPage() {
             </div>
           </div>
         ) : (
-          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-xs">
-            <Table>
-              <TableHeader>
-                <TableRow className={t("bg-zinc-50", "bg-slate-800/60", "bg-zinc-900/60")}>
-                  <TableHead className="font-bold text-xs">Member Name</TableHead>
-                  <TableHead className="font-bold text-xs">Role</TableHead>
-                  <TableHead className="font-bold text-xs">Age / Category</TableHead>
-                  <TableHead className="font-bold text-xs">Gender</TableHead>
-                  <TableHead className="font-bold text-xs hidden sm:table-cell">Blood Group</TableHead>
-                  <TableHead className="font-bold text-xs hidden md:table-cell">Marital Status</TableHead>
-                  <TableHead className="font-bold text-xs hidden lg:table-cell">Occupation</TableHead>
-                  <TableHead className="font-bold text-xs">Status</TableHead>
-                  <TableHead className="font-bold text-xs text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {members.map((member) => (
-                  <TableRow
-                    key={member.id}
-                    className={`transition-colors ${t(
-                      "hover:bg-zinc-50/80",
-                      "hover:bg-slate-800/40",
-                      "hover:bg-zinc-900/40"
-                    )}`}
-                  >
-                    {/* Name & Head Badge */}
-                    <TableCell className="font-semibold text-sm">
-                      <div className="flex items-center gap-2">
-                        <span>{member.name}</span>
-                        {member.isHead && (
-                          <Badge className="bg-amber-500 text-zinc-950 font-bold text-[10px] flex items-center gap-1 hover:bg-amber-400">
-                            <Crown className="h-2.5 w-2.5" /> Head
-                          </Badge>
-                        )}
-                      </div>
-                      {member.phone && (
-                        <span className={`text-[11px] block mt-0.5 ${t("text-zinc-500", "text-slate-400", "text-zinc-400")}`}>
-                          {member.phone}
-                        </span>
-                      )}
-                    </TableCell>
-
-                    {/* Church Role */}
-                    <TableCell className="text-xs">
-                      <span className={`px-2 py-0.5 rounded-md font-medium ${t("bg-zinc-100 text-zinc-700", "bg-slate-800 text-slate-300", "bg-zinc-800 text-zinc-300")}`}>
-                        {member.role || "Member"}
-                      </span>
-                    </TableCell>
-
-                    {/* Age & Category Badge */}
-                    <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-mono">{member.age || "—"}</span>
-                        {typeof member.age === "number" && (
-                          <>
-                            {member.age < 12 && (
-                              <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-300 text-[10px]">Child</Badge>
-                            )}
-                            {member.age >= 12 && member.age < 18 && (
-                              <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-300 text-[10px]">Pre-Youth</Badge>
-                            )}
-                            {member.age >= 18 && member.age <= 30 && (
-                              <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-300 text-[10px]">Youth</Badge>
-                            )}
-                            {member.age > 30 && (
-                              <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-300 text-[10px]">Adult</Badge>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
-
-                    {/* Gender */}
-                    <TableCell className="text-xs capitalize">
-                      {member.gender.toLowerCase()}
-                    </TableCell>
-
-                    {/* Blood Group */}
-                    <TableCell className="text-xs hidden sm:table-cell font-mono">
-                      <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400">
-                        <Droplet className="h-3 w-3 fill-red-500/20" />
-                        {member.bloodGroup}
-                      </span>
-                    </TableCell>
-
-                    {/* Marital Status */}
-                    <TableCell className="text-xs hidden md:table-cell">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="capitalize">{member.maritalStatus ? member.maritalStatus.toLowerCase() : "—"}</span>
-                          {member.maritalStatus === "UNMARRIED" && member.isLookingForAlliance && (
-                            <Badge
-                              variant="outline"
-                              title="Looking for matrimonial alliance"
-                              className="text-[10px] font-semibold px-2 py-0.5 h-5 bg-pink-500/15 text-pink-700 dark:text-pink-300 border-pink-300 dark:border-pink-500/40 inline-flex items-center gap-1 leading-none shadow-2xs"
-                            >
-                              <Heart className="h-2.5 w-2.5 text-pink-500 fill-pink-500/30 shrink-0" />
-                              Alliance
-                            </Badge>
-                          )}
-                        </div>
-                        {member.maritalStatus === "MARRIED" && member.dateOfMarriage && (
-                          <span className={`text-[10px] font-mono leading-none ${t("text-zinc-500", "text-slate-400", "text-zinc-400")}`}>
-                            DOM: {member.dateOfMarriage} {calculateYears(member.dateOfMarriage) !== "" ? `(${calculateYears(member.dateOfMarriage)} yrs)` : ""}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-
-                    {/* Occupation */}
-                    <TableCell className={`text-xs hidden lg:table-cell ${!member.occupation ? (t("text-zinc-400", "text-slate-500", "text-zinc-500")) : ""}`}>
-                      {member.occupation || "—"}
-                    </TableCell>
-
-                    {/* Status */}
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={
-                          member.status === "ACTIVE"
-                            ? "bg-emerald-500/10 text-emerald-700 border-emerald-300 text-[10px]"
-                            : "bg-red-500/10 text-red-600 border-red-300 text-[10px]"
-                        }
-                      >
-                        {member.status}
-                      </Badge>
-                    </TableCell>
-
-                    {/* Actions */}
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditMember(member)}
-                          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${t(
-                            "hover:bg-zinc-100 text-zinc-600",
-                            "hover:bg-slate-800 text-slate-300",
-                            "hover:bg-zinc-800 text-zinc-300"
-                          )}`}
-                          title="Edit Member"
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteMember(member.id)}
-                          className={`p-1.5 rounded-lg transition-colors cursor-pointer text-zinc-400 hover:text-red-500 ${t(
-                            "hover:bg-red-50",
-                            "hover:bg-red-950/30",
-                            "hover:bg-red-950/30"
-                          )}`}
-                          title="Remove Member"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <DataTable
+            data={members}
+            columns={addMemberColumns}
+            className="rounded-xl shadow-xs"
+          />
         )}
 
         {/* ─── CREATE FAMILY BOTTOM ACTION ─── */}
@@ -816,12 +823,15 @@ export default function AddFamilyPage() {
                     onChange={(e) =>
                       setMemberForm({
                         ...memberForm,
-                        status: e.target.value as "ACTIVE" | "INACTIVE",
+                        status: e.target.value as Status,
                       })
                     }
                   >
-                    <option value="ACTIVE">Active</option>
-                    <option value="INACTIVE">Inactive</option>
+                    {STATUS_OPTIONS.map((st) => (
+                      <option key={st.value} value={st.value}>
+                        {st.label}
+                      </option>
+                    ))}
                   </NativeSelect>
                 )}
               </div>
@@ -930,9 +940,11 @@ export default function AddFamilyPage() {
                   }
                 >
                   <option value="" disabled>Select Gender</option>
-                  <option value="MALE">Male</option>
-                  <option value="FEMALE">Female</option>
-                  <option value="OTHER">Other</option>
+                  {GENDERS.map((g) => (
+                    <option key={g.value} value={g.value}>
+                      {g.label}
+                    </option>
+                  ))}
                 </NativeSelect>
               </div>
             </div>
@@ -954,7 +966,7 @@ export default function AddFamilyPage() {
                   }
                 >
                   <option value="" disabled>Select Blood Group</option>
-                  {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-", "Unknown"].map((bg) => (
+                  {BLOOD_GROUPS.map((bg) => (
                     <option key={bg} value={bg}>
                       {bg}
                     </option>
@@ -983,10 +995,11 @@ export default function AddFamilyPage() {
                   }}
                 >
                   <option value="" disabled>Select Marital Status</option>
-                  <option value="MARRIED">Married</option>
-                  <option value="UNMARRIED">Unmarried / Single</option>
-                  <option value="DIVORCED">Divorced</option>
-                  <option value="WIDOWED">Widowed</option>
+                  {MARITAL_STATUSES.map((ms) => (
+                    <option key={ms.value} value={ms.value}>
+                      {ms.label}
+                    </option>
+                  ))}
                 </NativeSelect>
               </div>
 
@@ -1003,16 +1016,11 @@ export default function AddFamilyPage() {
                   onChange={(e) => setMemberForm({ ...memberForm, role: e.target.value })}
                 >
                   <option value="" disabled>Select Church Role</option>
-                  <option value="General Member">General Member</option>
-                  <option value="Pastor">Pastor</option>
-                  <option value="Elder">Elder</option>
-                  <option value="Deacon">Deacon</option>
-                  <option value="Worship Leader">Worship Leader</option>
-                  <option value="Sunday School Teacher">Sunday School Teacher</option>
-                  <option value="Youth Leader">Youth Leader</option>
-                  <option value="Audio/Visual Team">Audio/Visual Team</option>
-                  <option value="Hospitality Team">Hospitality Team</option>
-                  <option value="Choir">Choir</option>
+                  {CHURCH_ROLES.map((role) => (
+                    <option key={role} value={role}>
+                      {role}
+                    </option>
+                  ))}
                 </NativeSelect>
               </div>
             </div>
@@ -1050,9 +1058,8 @@ export default function AddFamilyPage() {
                       placeholder="Auto from DOM"
                       value={
                         memberForm.dateOfMarriage && calculateYears(memberForm.dateOfMarriage) !== ""
-                          ? `${calculateYears(memberForm.dateOfMarriage)} ${
-                              calculateYears(memberForm.dateOfMarriage) === 1 ? "Year" : "Years"
-                            }${calculateYears(memberForm.dateOfMarriage) === 0 ? " (Newly Married)" : ""}`
+                          ? `${calculateYears(memberForm.dateOfMarriage)} ${calculateYears(memberForm.dateOfMarriage) === 1 ? "Year" : "Years"
+                          }${calculateYears(memberForm.dateOfMarriage) === 0 ? " (Newly Married)" : ""}`
                           : ""
                       }
                       readOnly
@@ -1081,15 +1088,14 @@ export default function AddFamilyPage() {
                   </span>
                 </div>
                 <label
-                  className={`h-9 flex items-center gap-2.5 px-3 rounded-xl border cursor-pointer select-none transition-colors shrink-0 ${
-                    memberForm.isLookingForAlliance
+                  className={`h-9 flex items-center gap-2.5 px-3 rounded-xl border cursor-pointer select-none transition-colors shrink-0 ${memberForm.isLookingForAlliance
                       ? "border-pink-500 bg-pink-500/10 text-pink-900 dark:text-pink-200"
                       : t(
-                          "border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700",
-                          "border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300",
-                          "border-zinc-800 bg-zinc-900 hover:bg-zinc-850 text-zinc-300"
-                        )
-                  }`}
+                        "border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700",
+                        "border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300",
+                        "border-zinc-800 bg-zinc-900 hover:bg-zinc-850 text-zinc-300"
+                      )
+                    }`}
                 >
                   <Checkbox
                     checked={!!memberForm.isLookingForAlliance}

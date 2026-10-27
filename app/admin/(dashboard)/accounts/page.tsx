@@ -13,14 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable, ColumnDef } from "@/components/ui/data-table";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -32,17 +25,9 @@ import {
   Search,
   Wallet,
 } from "lucide-react";
-import React, { useState } from "react";
-
-interface Transaction {
-  id: string;
-  date: string;
-  category: string;
-  type: "Credit" | "Debit";
-  amount: number;
-  account: string;
-  status: "Cleared" | "Paid" | "Pending";
-}
+import React, { useState, useMemo } from "react";
+import type { Transaction } from "@/types";
+import { ACCOUNT_FLOWS } from "@/constants";
 
 const initialTransactions: Transaction[] = [
   {
@@ -140,6 +125,80 @@ export default function AccountsPage() {
     return matchesSearch && matchesType;
   });
 
+  const accountColumns: ColumnDef<Transaction>[] = useMemo(
+    () => [
+      {
+        accessorKey: "id",
+        header: "Tx ID",
+        headerClassName: "font-bold text-xs",
+        className: "font-mono text-xs font-bold",
+        cell: (tx) => tx.id,
+      },
+      {
+        accessorKey: "date",
+        header: "Date",
+        headerClassName: "font-bold text-xs",
+        className: "text-xs",
+        cell: (tx) => tx.date,
+      },
+      {
+        accessorKey: "category",
+        header: "Category / Narration",
+        headerClassName: "font-bold text-xs",
+        className: "text-xs font-medium",
+        cell: (tx) => tx.category,
+      },
+      {
+        accessorKey: "type",
+        header: "Flow",
+        headerClassName: "font-bold text-xs",
+        cell: (tx) => (
+          <Badge
+            variant="outline"
+            className={
+              tx.type === "Credit"
+                ? "bg-emerald-500/10 text-emerald-700 border-emerald-300 text-[10px] flex w-fit items-center gap-1"
+                : "bg-red-500/10 text-red-600 border-red-300 text-[10px] flex w-fit items-center gap-1"
+            }
+          >
+            {tx.type === "Credit" ? (
+              <ArrowDownLeft className="h-3 w-3" />
+            ) : (
+              <ArrowUpRight className="h-3 w-3" />
+            )}
+            {tx.type}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "account",
+        header: "Ledger Account",
+        headerClassName: "font-bold text-xs",
+        className: "text-xs",
+        cell: (tx) => tx.account,
+      },
+      {
+        accessorKey: "amount",
+        header: "Amount (₹)",
+        align: "right",
+        headerClassName: "font-bold text-xs text-right",
+        className: "text-right font-mono font-bold text-sm",
+        cell: (tx) => (
+          <span
+            className={
+              tx.type === "Credit"
+                ? "text-emerald-700 dark:text-emerald-400"
+                : "text-zinc-900 dark:text-zinc-100"
+            }
+          >
+            {tx.type === "Credit" ? "+" : "-"}₹{tx.amount.toLocaleString("en-IN")}
+          </span>
+        ),
+      },
+    ],
+    []
+  );
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -218,64 +277,25 @@ export default function AccountsPage() {
         <div className="w-full sm:w-44">
           <NativeSelect
             value={filterType}
-            onChange={(e) => setFilterType(e.target.value as "ALL" | "Credit" | "Debit")}
+            onChange={(e) => setFilterType(e.target.value as "ALL" | (typeof ACCOUNT_FLOWS)[number])}
             className="text-xs h-10"
           >
             <option value="ALL">All Flows</option>
-            <option value="Credit">Credits Only (Income)</option>
-            <option value="Debit">Debits Only (Expense)</option>
+            {ACCOUNT_FLOWS.map((flow) => (
+              <option key={flow} value={flow}>
+                {flow === "Credit" ? "Credits Only (Income)" : "Debits Only (Expense)"}
+              </option>
+            ))}
           </NativeSelect>
         </div>
       </div>
 
       {/* Ledger Table */}
-      <div className={`rounded-2xl border shadow-sm overflow-hidden ${t("bg-white border-zinc-200", "bg-slate-900 border-slate-800", "bg-zinc-950 border-zinc-800")}`}>
-        <Table>
-          <TableHeader>
-            <TableRow className={t("bg-zinc-50", "bg-slate-800/60", "bg-zinc-900/60")}>
-              <TableHead className="font-bold text-xs">Tx ID</TableHead>
-              <TableHead className="font-bold text-xs">Date</TableHead>
-              <TableHead className="font-bold text-xs">Category / Narration</TableHead>
-              <TableHead className="font-bold text-xs">Flow</TableHead>
-              <TableHead className="font-bold text-xs">Ledger Account</TableHead>
-              <TableHead className="font-bold text-xs text-right">Amount (₹)</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredTx.map((tx) => (
-              <TableRow key={tx.id}>
-                <TableCell className="font-mono text-xs font-bold">{tx.id}</TableCell>
-                <TableCell className="text-xs">{tx.date}</TableCell>
-                <TableCell className="text-xs font-medium">{tx.category}</TableCell>
-                <TableCell>
-                  <Badge
-                    variant="outline"
-                    className={
-                      tx.type === "Credit"
-                        ? "bg-emerald-500/10 text-emerald-700 border-emerald-300 text-[10px] flex w-fit items-center gap-1"
-                        : "bg-red-500/10 text-red-600 border-red-300 text-[10px] flex w-fit items-center gap-1"
-                    }
-                  >
-                    {tx.type === "Credit" ? (
-                      <ArrowDownLeft className="h-3 w-3" />
-                    ) : (
-                      <ArrowUpRight className="h-3 w-3" />
-                    )}
-                    {tx.type}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-xs">{tx.account}</TableCell>
-                <TableCell
-                  className={`text-right font-mono font-bold text-sm ${tx.type === "Credit" ? "text-emerald-700 dark:text-emerald-400" : "text-zinc-900 dark:text-zinc-100"
-                    }`}
-                >
-                  {tx.type === "Credit" ? "+" : "-"}₹{tx.amount.toLocaleString("en-IN")}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable
+        data={filteredTx}
+        columns={accountColumns}
+        emptyMessage="No ledger transactions match your search filter."
+      />
 
       {/* Modal */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -315,9 +335,12 @@ export default function AccountsPage() {
               <label className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
                 Transaction Type
               </label>
-              <NativeSelect value={type} onChange={(e) => setType(e.target.value as "Credit" | "Debit")}>
-                <option value="Debit">Debit (Expense / Payout)</option>
-                <option value="Credit">Credit (Income / Deposit)</option>
+              <NativeSelect value={type} onChange={(e) => setType(e.target.value as (typeof ACCOUNT_FLOWS)[number])}>
+                {ACCOUNT_FLOWS.map((flow) => (
+                  <option key={flow} value={flow}>
+                    {flow === "Debit" ? "Debit (Expense / Payout)" : "Credit (Income / Deposit)"}
+                  </option>
+                ))}
               </NativeSelect>
             </div>
 

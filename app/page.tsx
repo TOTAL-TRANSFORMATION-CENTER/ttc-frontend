@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -245,6 +245,10 @@ const churchActivities: ChurchActivity[] = [
 export default function Home() {
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<"all" | "sunday" | "weekday">("all");
+
+  useEffect(() => {
+    document.title = "Total Transformation Center | Where Lives Find Purpose & Grace";
+  }, []);
 
   /** Shorthand helper to pick class per active theme */
   const t = (light: string, solarised: string, dark: string) =>

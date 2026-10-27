@@ -12,14 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable, ColumnDef } from "@/components/ui/data-table";
 import { Textarea } from "@/components/ui/textarea";
 import {
   CheckCircle2,
@@ -31,19 +24,9 @@ import {
   UserPlus,
   Users
 } from "lucide-react";
-import React, { useState } from "react";
-
-interface NewComer {
-  id: string;
-  name: string;
-  phone: string;
-  visitDate: string;
-  service: string;
-  heardFrom: string;
-  prayerNeed: string;
-  status: "Needs Call" | "Called & Welcomed" | "Home Visited" | "Joined Fellowship";
-  assignedTo: string;
-}
+import React, { useState, useMemo } from "react";
+import type { NewComer } from "@/types";
+import { FOLLOW_UP_STAGES } from "@/constants";
 
 const initialNewComers: NewComer[] = [
   {
@@ -151,6 +134,91 @@ export default function NewCommersPage() {
     return matchesSearch && matchesStatus;
   });
 
+  const newComerColumns: ColumnDef<NewComer>[] = useMemo(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Guest Name",
+        headerClassName: "font-bold text-xs",
+        className: "font-semibold text-sm",
+        cell: (nc) => (
+          <div>
+            <span>{nc.name}</span>
+            <span
+              className={`block text-[11px] font-normal ${t(
+                "text-zinc-500",
+                "text-slate-400",
+                "text-zinc-400"
+              )}`}
+            >
+              {nc.service}
+            </span>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "phone",
+        header: "Phone",
+        headerClassName: "font-bold text-xs",
+        className: "text-xs font-mono",
+        cell: (nc) => nc.phone,
+      },
+      {
+        accessorKey: "visitDate",
+        header: "Visit Date",
+        headerClassName: "font-bold text-xs",
+        className: "text-xs",
+        cell: (nc) => nc.visitDate,
+      },
+      {
+        accessorKey: "heardFrom",
+        header: "Heard From",
+        headerClassName: "font-bold text-xs hidden md:table-cell",
+        className: "text-xs hidden md:table-cell",
+        cell: (nc) => nc.heardFrom,
+      },
+      {
+        accessorKey: "prayerNeed",
+        header: "Prayer Request",
+        headerClassName: "font-bold text-xs hidden lg:table-cell",
+        className: `text-xs hidden lg:table-cell max-w-[200px] truncate ${t(
+          "text-zinc-600",
+          "text-slate-400",
+          "text-zinc-400"
+        )}`,
+        cell: (nc) => nc.prayerNeed,
+      },
+      {
+        accessorKey: "status",
+        header: "Care Status",
+        headerClassName: "font-bold text-xs",
+        cell: (nc) => (
+          <NativeSelect
+            value={nc.status}
+            onChange={(e) =>
+              handleStatusChange(nc.id, e.target.value as NewComer["status"])
+            }
+            className="h-8 text-[11px] w-40"
+          >
+            <option value="Needs Call">Needs Call</option>
+            <option value="Called & Welcomed">Called &amp; Welcomed</option>
+            <option value="Home Visited">Home Visited</option>
+            <option value="Joined Fellowship">Joined Fellowship</option>
+          </NativeSelect>
+        ),
+      },
+      {
+        accessorKey: "assignedTo",
+        header: "Assigned Minister",
+        headerClassName: "font-bold text-xs",
+        className: "text-xs font-medium text-amber-600 dark:text-amber-400",
+        cell: (nc) => nc.assignedTo,
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [theme]
+  );
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -239,63 +307,21 @@ export default function NewCommersPage() {
             className="text-xs h-10"
           >
             <option value="ALL">All Follow-up Stages</option>
-            <option value="Needs Call">Needs Call</option>
-            <option value="Called & Welcomed">Called &amp; Welcomed</option>
-            <option value="Home Visited">Home Visited</option>
-            <option value="Joined Fellowship">Joined Fellowship</option>
+            {FOLLOW_UP_STAGES.map((st) => (
+              <option key={st} value={st}>
+                {st}
+              </option>
+            ))}
           </NativeSelect>
         </div>
       </div>
 
       {/* Visitors Table */}
-      <div className={`rounded-2xl border shadow-sm overflow-hidden ${t("bg-white border-zinc-200", "bg-slate-900 border-slate-800", "bg-zinc-950 border-zinc-800")}`}>
-        <Table>
-          <TableHeader>
-            <TableRow className={t("bg-zinc-50", "bg-slate-800/60", "bg-zinc-900/60")}>
-              <TableHead className="font-bold text-xs">Guest Name</TableHead>
-              <TableHead className="font-bold text-xs">Phone</TableHead>
-              <TableHead className="font-bold text-xs">Visit Date</TableHead>
-              <TableHead className="font-bold text-xs hidden md:table-cell">Heard From</TableHead>
-              <TableHead className="font-bold text-xs hidden lg:table-cell">Prayer Request</TableHead>
-              <TableHead className="font-bold text-xs">Care Status</TableHead>
-              <TableHead className="font-bold text-xs">Assigned Minister</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredVisitors.map((nc) => (
-              <TableRow key={nc.id}>
-                <TableCell className="font-semibold text-sm">
-                  {nc.name}
-                  <span className={`block text-[11px] font-normal ${t("text-zinc-500", "text-slate-400", "text-zinc-400")}`}>
-                    {nc.service}
-                  </span>
-                </TableCell>
-                <TableCell className="text-xs font-mono">{nc.phone}</TableCell>
-                <TableCell className="text-xs">{nc.visitDate}</TableCell>
-                <TableCell className="text-xs hidden md:table-cell">{nc.heardFrom}</TableCell>
-                <TableCell className={`text-xs hidden lg:table-cell max-w-[200px] truncate ${t("text-zinc-600", "text-slate-400", "text-zinc-400")}`}>
-                  {nc.prayerNeed}
-                </TableCell>
-                <TableCell>
-                  <NativeSelect
-                    value={nc.status}
-                    onChange={(e) => handleStatusChange(nc.id, e.target.value as NewComer["status"])}
-                    className="h-8 text-[11px] w-40"
-                  >
-                    <option value="Needs Call">Needs Call</option>
-                    <option value="Called & Welcomed">Called &amp; Welcomed</option>
-                    <option value="Home Visited">Home Visited</option>
-                    <option value="Joined Fellowship">Joined Fellowship</option>
-                  </NativeSelect>
-                </TableCell>
-                <TableCell className="text-xs font-medium text-amber-600 dark:text-amber-400">
-                  {nc.assignedTo}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable
+        data={filteredVisitors}
+        columns={newComerColumns}
+        emptyMessage="No first-time visitors match your criteria."
+      />
 
       {/* Register Visitor Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

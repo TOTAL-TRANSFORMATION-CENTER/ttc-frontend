@@ -43,9 +43,8 @@ export default function AuthPage({ mode }: AuthPageProps) {
             width={48}
             height={48}
             unoptimized
-            className={`h-10 w-auto sm:h-12 object-contain drop-shadow-md ${
-              theme === "light" ? "" : "brightness-0 invert"
-            }`}
+            className={`h-10 w-auto sm:h-12 object-contain drop-shadow-md ${theme === "light" ? "" : "brightness-0 invert"
+              }`}
           />
         </Link>
       </motion.div>
@@ -58,15 +57,14 @@ export default function AuthPage({ mode }: AuthPageProps) {
         transition={{ duration: 0.4, delay: 0.2 }}
       >
         <span
-          className={`text-lg md:text-xl font-bold tracking-tight ${
-            theme === "light"
-              ? "text-indigo-950"
-              : theme === "solarised"
-                ? "text-slate-100"
-                : "text-zinc-50"
-          }`}
+          className={`text-lg md:text-xl font-bold tracking-tight ${theme === "light"
+            ? "text-indigo-950"
+            : theme === "solarised"
+              ? "text-slate-100"
+              : "text-zinc-50"
+            }`}
         >
-          Total Transformation Center
+          {mode === "admin" ? "" : "Total Transformation Center"}
         </span>
       </motion.div>
 

@@ -13,9 +13,11 @@ import {
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
+import { useFamilyCount } from "@/hooks/use-families";
 
 export default function AdminDashboardPage() {
   const { theme } = useTheme();
+  const { data: familyCount } = useFamilyCount();
 
   const t = (light: string, solarised: string, dark: string) => {
     if (theme === "light") return light;
@@ -74,9 +76,9 @@ export default function AdminDashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           {
-            label: "Total Congregation",
-            value: "1,420",
-            sub: "+48 members this month",
+            label: "Registered Families",
+            value: familyCount !== undefined ? familyCount.toLocaleString() : "...",
+            sub: "Live directory records",
             icon: Users,
             iconColor: "bg-indigo-500/10 text-indigo-500",
             subIcon: TrendingUp,

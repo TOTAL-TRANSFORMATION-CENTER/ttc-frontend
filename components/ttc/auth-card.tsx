@@ -6,6 +6,7 @@ import { Eye, EyeOff, Loader2, Sparkles, CheckCircle2, ShieldCheck } from "lucid
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { BannerAlert } from "@/components/ui/banner-alert";
 
 interface AuthCardProps {
   theme: "light" | "solarised" | "dark";
@@ -27,28 +28,19 @@ export default function AuthCard({ theme, mode, onClose }: AuthCardProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isAdmin) {
-      if (password !== "12345") {
-        setError("Incorrect admin password.");
-        return;
-      }
-      setIsLoading(true);
-      setError("");
-      setSuccessMsg("Authenticated. Opening admin dashboard...");
-      setTimeout(() => {
-        router.push("/admin/dashboard");
-      }, 300);
-      return;
-    }
+    setError("");
+    setSuccessMsg("");
 
     if (!identifier.trim() || !password) {
-      setError("Please enter both your phone number or email and password.");
+      setError(
+        isAdmin
+          ? "Please enter your admin email or phone number and password."
+          : "Please enter your phone number or email and password."
+      );
       return;
     }
 
     setIsLoading(true);
-    setError("");
-    setSuccessMsg("");
 
     try {
       const res = await fetch("/api/auth/login", {
@@ -56,8 +48,10 @@ export default function AuthCard({ theme, mode, onClose }: AuthCardProps) {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "same-origin", // ensures cookies are set
         body: JSON.stringify({
           phone: identifier.trim(),
+          email: identifier.trim(),
           identifier: identifier.trim(),
           password,
         }),
@@ -66,27 +60,41 @@ export default function AuthCard({ theme, mode, onClose }: AuthCardProps) {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        setError(data.message || "Invalid phone number or password.");
+        setError(data.message || "Invalid credentials. Please verify and try again.");
         setIsLoading(false);
         return;
       }
 
-      if (isAdmin && data.user?.role !== "ADMIN") {
-        setError("Access restricted: This account does not have administrator privileges.");
+      const roleUpper = data.user?.role?.toUpperCase?.() || "";
+      const isAuthorizedRole = roleUpper.includes("ADMIN") || roleUpper === "SUPER ADMIN";
+
+      if (isAdmin && !isAuthorizedRole) {
+        setError("Access restricted: This account does not possess administrator privileges.");
         setIsLoading(false);
         return;
       }
 
-      setSuccessMsg("Welcome back! Redirecting to your dashboard...");
+      setSuccessMsg(
+        isAdmin
+          ? "Welcome, Administrator! Launching management portal..."
+          : "Welcome back! Redirecting to your dashboard..."
+      );
 
       // Short delay for smooth visual feedback before redirect
       setTimeout(() => {
-        router.push("/dashboard");
+        const searchParams = new URLSearchParams(window.location.search);
+        const returnUrl = searchParams.get("returnUrl");
+        const target = returnUrl || (isAdmin ? "/admin/families" : "/dashboard");
+        router.push(target);
         router.refresh();
       }, 500);
     } catch (err) {
       console.error("Login submission error:", err);
-      setError("Unable to reach the server. Please check your connection and try again.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to reach the server. Please check your network connection and try again."
+      );
       setIsLoading(false);
     }
   };
@@ -94,6 +102,12 @@ export default function AuthCard({ theme, mode, onClose }: AuthCardProps) {
   const handleFillDemo = () => {
     setIdentifier("+919876543210");
     setPassword("SecurePassword123");
+    setError("");
+  };
+
+  const handleFillAdminDemo = () => {
+    setIdentifier("admin@ttc.org");
+    setPassword("Admin123!");
     setError("");
   };
 
@@ -161,7 +175,7 @@ export default function AuthCard({ theme, mode, onClose }: AuthCardProps) {
               }`}
           >
             <span className={`h-1.5 w-1.5 rounded-full ${isAdmin ? "bg-amber-500 animate-pulse" : "bg-indigo-500 animate-pulse"}`} />
-            {isAdmin ? "Admin Security Portal" : "TTC Member Sign In"}
+            {isAdmin ? "Total Transformation Center" : "TTC Member Sign In"}
           </span>
         </div>
 
@@ -185,22 +199,21 @@ export default function AuthCard({ theme, mode, onClose }: AuthCardProps) {
 
       <CardContent className="space-y-5">
         {error && (
-          <div
-            role="alert"
-            className="rounded-lg bg-red-500/10 border border-red-500/30 p-3 text-sm font-medium text-red-600 dark:text-red-400 animate-in fade-in duration-200"
-          >
-            {error}
-          </div>
+          <BannerAlert
+            variant="error"
+            title="Authentication Failed"
+            message={error}
+            onClose={() => setError("")}
+          />
         )}
 
         {successMsg && (
-          <div
-            role="status"
-            className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 p-3 text-sm font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-2 animate-in fade-in duration-200"
-          >
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
-            <span>{successMsg}</span>
-          </div>
+          <BannerAlert
+            variant="success"
+            title="Success"
+            message={successMsg}
+            onClose={() => setSuccessMsg("")}
+          />
         )}
 
         {/* Dynamic Form */}
@@ -208,13 +221,22 @@ export default function AuthCard({ theme, mode, onClose }: AuthCardProps) {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className={`text-xs font-semibold ${labelStyles[theme]}`} htmlFor="identifier">
-                Phone Number
+                {isAdmin ? "Admin Email or Phone" : "Phone Number"}
               </label>
-              {!isAdmin && (
+              {isAdmin ? (
+                <button
+                  type="button"
+                  onClick={handleFillAdminDemo}
+                  className="text-[11px] text-amber-600 dark:text-amber-400 hover:underline inline-flex items-center gap-1 font-semibold cursor-pointer"
+                >
+                  <Sparkles className="h-3 w-3" />
+                  Fill Test Admin
+                </button>
+              ) : (
                 <button
                   type="button"
                   onClick={handleFillDemo}
-                  className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1 font-medium"
+                  className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1 font-medium cursor-pointer"
                 >
                   <Sparkles className="h-3 w-3" />
                   Fill Demo
@@ -226,10 +248,9 @@ export default function AuthCard({ theme, mode, onClose }: AuthCardProps) {
               type="text"
               required
               autoComplete="username"
-              placeholder={"+919800098000"}
+              placeholder={isAdmin ? "admin@ttc.org or +91 98765 00001" : "+919800098000"}
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-
               className={inputStyles[theme]}
             />
           </div>
@@ -286,10 +307,11 @@ export default function AuthCard({ theme, mode, onClose }: AuthCardProps) {
                 Sign In to Admin Dashboard
               </span>
             ) : (
-              "Sign In to Dashboard"
+              "Sign In with Phone"
             )}
           </Button>
         </form>
+
       </CardContent>
 
       <CardFooter className={`flex flex-col gap-1 text-center text-xs px-6 pb-6 pt-4 font-medium rounded-b-xl ${footerStyles[theme]}`}>

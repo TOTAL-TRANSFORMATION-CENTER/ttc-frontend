@@ -195,10 +195,36 @@ export interface NativeSelectProps extends Omit<React.SelectHTMLAttributes<HTMLS
   onChange?: (e: { target: { value: string; name?: string } }) => void;
   onValueChange?: (value: string) => void;
   placeholder?: string;
+  searchable?: boolean;
+  searchPlaceholder?: string;
+  onSearch?: (query: string) => void;
+  isLoading?: boolean;
+  emptyMessage?: string;
 }
 
 const NativeSelect = React.forwardRef<HTMLDivElement, NativeSelectProps>(
-  ({ className, children, error, value, defaultValue, onChange, onValueChange, disabled, name, id, placeholder, required }, ref) => {
+  (
+    {
+      className,
+      children,
+      error,
+      value,
+      defaultValue,
+      onChange,
+      onValueChange,
+      disabled,
+      name,
+      id,
+      placeholder,
+      required,
+      searchable,
+      searchPlaceholder,
+      onSearch,
+      isLoading,
+      emptyMessage,
+    },
+    ref
+  ) => {
     return (
       <div ref={ref} className="w-full">
         <CustomSelect
@@ -213,6 +239,11 @@ const NativeSelect = React.forwardRef<HTMLDivElement, NativeSelectProps>(
           error={error}
           placeholder={placeholder}
           required={required}
+          searchable={searchable}
+          searchPlaceholder={searchPlaceholder}
+          onSearch={onSearch}
+          isLoading={isLoading}
+          emptyMessage={emptyMessage}
         >
           {children}
         </CustomSelect>

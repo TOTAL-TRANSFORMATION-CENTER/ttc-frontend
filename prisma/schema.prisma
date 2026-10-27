@@ -1,0 +1,68 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model admin {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_id     String   @unique @db.Uuid
+  password      String   @db.VarChar
+  role          String?  @default("Admin") @db.VarChar(50)
+  is_active     Boolean  @default(true)
+  created_by    String?  @db.Uuid
+  created_at    DateTime @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamptz(6)
+  modified_by   String?  @db.Uuid
+  last_modified DateTime @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamptz(6)
+  members       members  @relation(fields: [member_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_admin_member")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model family {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  status          String?
+  location        String?   @db.VarChar
+  region          String?
+  address         String?   @db.VarChar
+  inactive_reason String?   @db.VarChar
+  password        String?   @db.VarChar
+  is_deleted      Boolean   @default(false)
+  created_at      DateTime? @db.Timestamp(6)
+  created_by      String?   @db.Uuid
+  members         members[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model members {
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  family_id               String?   @db.Uuid
+  name                    String    @db.VarChar
+  is_head                 Boolean   @default(false)
+  age                     Int?
+  gender                  String?
+  blood_group             String?   @db.VarChar
+  dob                     DateTime? @db.Date
+  status                  String?
+  inactive_reason         String?   @db.VarChar
+  marital_status          String?
+  is_looking_for_alliance Boolean   @default(false)
+  dom                     DateTime? @db.Date
+  occupation              String?   @db.VarChar
+  role                    String    @default("MEMBER")
+  church_role             String?   @db.VarChar
+  is_deleted              Boolean   @default(false)
+  created_at              DateTime  @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamptz(6)
+  last_modified           DateTime  @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamptz(6)
+  email                   String?   @db.VarChar
+  phone                   String?   @db.VarChar
+  created_by              String?   @db.Uuid
+  modified_by             String?   @db.Uuid
+  admin                   admin?
+  family                  family?   @relation(fields: [family_id], references: [id], onUpdate: NoAction, map: "fk_member_family")
+}

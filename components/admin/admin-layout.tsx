@@ -16,8 +16,9 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import React, { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import React, { useState, useEffect, useMemo } from "react";
+import { useFamilyCount } from "@/hooks/use-families";
 
 interface SidebarItem {
   href: string;
@@ -26,19 +27,37 @@ interface SidebarItem {
   badge?: string;
 }
 
-const sidebarItems: SidebarItem[] = [
-  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/families", label: "Families", icon: Users, badge: "1,420" },
-  { href: "/admin/offerings", label: "Offerings", icon: HeartHandshake },
-  { href: "/admin/accounts", label: "Accounts", icon: Wallet },
-  { href: "/admin/new-commers", label: "New commers", icon: UserPlus, badge: "8 New" },
-  { href: "/admin/admin-management", label: "Admin management", icon: ShieldCheck },
-];
-
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { theme } = useTheme();
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { data: familyCount } = useFamilyCount();
+
+  // Dynamic sidebar items with live database-driven family count
+  const sidebarItems: SidebarItem[] = useMemo(() => [
+    { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    {
+      href: "/admin/families",
+      label: "Families",
+      icon: Users,
+      badge: familyCount !== undefined ? familyCount.toLocaleString() : undefined,
+    },
+    { href: "/admin/offerings", label: "Offerings", icon: HeartHandshake },
+    { href: "/admin/accounts", label: "Accounts", icon: Wallet },
+    { href: "/admin/new-commers", label: "New commers", icon: UserPlus, badge: "8 New" },
+    { href: "/admin/admin-management", label: "Admin management", icon: ShieldCheck },
+  ], [familyCount]);
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // Ignore
+    }
+    router.push("/admin");
+    router.refresh();
+  };
 
   const t = (light: string, solarised: string, dark: string) => {
     if (theme === "light") return light;
@@ -54,6 +73,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   const activeLabel = sidebarItems.find((item) => isActive(item.href))?.label ?? "Admin";
+
+  // Dynamic SEO friendly title based on the active admin screen
+  useEffect(() => {
+    const pageTitleMap: Record<string, string> = {
+      "/admin/dashboard": "Dashboard | TTC Admin Portal",
+      "/admin/families": "Family Directory | TTC Admin Portal",
+      "/admin/family/add": "Add New Family | TTC Admin Portal",
+      "/admin/family/edit": "Edit Family | TTC Admin Portal",
+      "/admin/offerings": "Offerings & Collections | TTC Admin Portal",
+      "/admin/accounts": "Accounts & Treasury | TTC Admin Portal",
+      "/admin/new-commers": "New Comers & Visitors | TTC Admin Portal",
+      "/admin/admin-management": "Admin Management & Access Control | TTC Admin Portal",
+    };
+
+    const matched = Object.entries(pageTitleMap).find(([path]) => pathname.startsWith(path));
+    const title = matched ? matched[1] : `${activeLabel} | TTC Admin Portal`;
+    document.title = title;
+  }, [pathname, activeLabel]);
 
   return (
     <div
@@ -214,17 +251,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 Member View
               </Link>
 
-              <Link
-                href="/"
-                className={`flex items-center justify-center p-2 rounded-xl border text-zinc-400 hover:text-red-500 transition-colors ${t(
+              <button
+                type="button"
+                onClick={handleLogout}
+                className={`flex items-center justify-center p-2 rounded-xl border text-zinc-400 hover:text-red-500 transition-colors cursor-pointer ${t(
                   "border-zinc-200 bg-white hover:bg-zinc-100",
                   "border-slate-800 bg-slate-800 hover:bg-slate-700",
                   "border-zinc-800 bg-zinc-900 hover:bg-zinc-800"
                 )}`}
-                title="Exit to Church Home"
+                title="Logout & Clear Session"
               >
                 <LogOut className="h-4 w-4" />
-              </Link>
+              </button>
             </div>
           </div>
         </div>

@@ -15,15 +15,9 @@ import {
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable, ColumnDef } from "@/components/ui/data-table";
 import { Textarea } from "@/components/ui/textarea";
+import { BannerAlert } from "@/components/ui/banner-alert";
 import { calculateYears, cn } from "@/lib/utils";
 import {
   Activity,
@@ -49,206 +43,28 @@ import {
   User,
   UserPlus,
   Users,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import React, { Suspense, useState } from "react";
-
-interface MemberFormData {
-  id: string;
-  name: string;
-  isHead: boolean;
-  age: number | "";
-  gender: "MALE" | "FEMALE" | "OTHER" | "";
-  bloodGroup: string;
-  dob: string;
-  status: "ACTIVE" | "INACTIVE";
-  inactiveReason: string;
-  maritalStatus: "MARRIED" | "UNMARRIED" | "DIVORCED" | "WIDOWED" | "";
-  dateOfMarriage?: string;
-  yearsOfMarriage?: number | "";
-  isLookingForAlliance?: boolean;
-  occupation: string;
-  role: string;
-  phone: string;
-  email: string;
-}
-
-const emptyMemberForm: MemberFormData = {
-  id: "",
-  name: "",
-  isHead: false,
-  age: "",
-  gender: "",
-  bloodGroup: "",
-  dob: "",
-  status: "ACTIVE",
-  inactiveReason: "",
-  maritalStatus: "",
-  dateOfMarriage: "",
-  yearsOfMarriage: "",
-  isLookingForAlliance: false,
-  occupation: "",
-  role: "",
-  phone: "",
-  email: "",
-};
-
-// Initial mock dictionary to prefill existing families for editing
-const existingFamiliesData: Record<
-  string,
-  {
-    id: string;
-    name: string;
-    status: "ACTIVE" | "INACTIVE";
-    inactiveReason: string;
-    location: string;
-    region: string;
-    address: string;
-    members: MemberFormData[];
-  }
-> = {
-  "FAM-001": {
-    id: "FAM-001",
-    name: "Samuel Family",
-    status: "ACTIVE",
-    inactiveReason: "",
-    location: "https://maps.google.com/?q=13.0827,80.2707",
-    region: "Karamadai",
-    address: "12, Church Street, Tambaram, Chennai - 600045",
-    members: [
-      {
-        id: "MEM-001",
-        name: "David Samuel",
-        isHead: true,
-        age: 45,
-        gender: "MALE",
-        phone: "9876543210",
-        email: "david.samuel@gmail.com",
-        bloodGroup: "O+",
-        dob: "1981-03-15",
-        status: "ACTIVE",
-        inactiveReason: "",
-        maritalStatus: "MARRIED",
-        occupation: "Engineer",
-        role: "Elder",
-      },
-      {
-        id: "MEM-002",
-        name: "Ruth Samuel",
-        isHead: false,
-        age: 42,
-        gender: "FEMALE",
-        phone: "9876543211",
-        email: "ruth.samuel@gmail.com",
-        bloodGroup: "A+",
-        dob: "1984-07-22",
-        status: "ACTIVE",
-        inactiveReason: "",
-        maritalStatus: "MARRIED",
-        occupation: "Teacher",
-        role: "Sunday School Teacher",
-      },
-      {
-        id: "MEM-003",
-        name: "Joshua Samuel",
-        isHead: false,
-        age: 16,
-        gender: "MALE",
-        phone: "9876543212",
-        email: "",
-        bloodGroup: "O+",
-        dob: "2010-05-10",
-        status: "ACTIVE",
-        inactiveReason: "",
-        maritalStatus: "UNMARRIED",
-        occupation: "Student",
-        role: "Youth Member",
-      },
-      {
-        id: "MEM-004",
-        name: "Abigail Samuel",
-        isHead: false,
-        age: 10,
-        gender: "FEMALE",
-        phone: "",
-        email: "",
-        bloodGroup: "A+",
-        dob: "2016-12-01",
-        status: "ACTIVE",
-        inactiveReason: "",
-        maritalStatus: "UNMARRIED",
-        occupation: "Student",
-        role: "Member",
-      },
-    ],
-  },
-  "FAM-002": {
-    id: "FAM-002",
-    name: "Paul Family",
-    status: "ACTIVE",
-    inactiveReason: "",
-    location: "https://maps.google.com/?q=12.9716,77.5946",
-    region: "Periyanaickenpalayam",
-    address: "28, Grace Avenue, Chromepet, Chennai - 600044",
-    members: [
-      {
-        id: "MEM-005",
-        name: "Stephen Paul",
-        isHead: true,
-        age: 38,
-        gender: "MALE",
-        phone: "9514952672",
-        email: "stephen.paul@outlook.com",
-        bloodGroup: "B+",
-        dob: "1988-11-08",
-        status: "ACTIVE",
-        inactiveReason: "",
-        maritalStatus: "MARRIED",
-        occupation: "Software Developer",
-        role: "Audio/Visual Team",
-      },
-      {
-        id: "MEM-006",
-        name: "Grace Paul",
-        isHead: false,
-        age: 35,
-        gender: "FEMALE",
-        phone: "9876543222",
-        email: "grace.paul@gmail.com",
-        bloodGroup: "AB+",
-        dob: "1991-04-15",
-        status: "ACTIVE",
-        inactiveReason: "",
-        maritalStatus: "MARRIED",
-        occupation: "Nurse",
-        role: "Hospitality Team",
-      },
-      {
-        id: "MEM-007",
-        name: "Elijah Paul",
-        isHead: false,
-        age: 8,
-        gender: "MALE",
-        phone: "",
-        email: "",
-        bloodGroup: "B+",
-        dob: "2018-06-20",
-        status: "ACTIVE",
-        inactiveReason: "",
-        maritalStatus: "UNMARRIED",
-        occupation: "Student",
-        role: "Member",
-      },
-    ],
-  },
-};
+import React, { Suspense, useEffect, useState, useMemo } from "react";
+import { type MemberFormData, emptyMemberForm, type Status } from "@/types";
+import { useFamily, useUpdateFamily } from "@/hooks/use-families";
+import { AgeBadge } from "@/components/ttc/age-badge";
+import { StatusBadge } from "@/components/ttc/status-badge";
+import {
+  BLOOD_GROUPS,
+  CHURCH_ROLES,
+  GENDERS,
+  MARITAL_STATUSES,
+  STATUS_OPTIONS,
+} from "@/constants";
 
 function EditFamilyContent() {
   const { theme } = useTheme();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const familyId = searchParams.get("id") || "FAM-001";
+  const familyId = searchParams.get("id") || "";
 
   const t = (light: string, solarised: string, dark: string) => {
     if (theme === "light") return light;
@@ -256,30 +72,85 @@ function EditFamilyContent() {
     return dark;
   };
 
-  const initialFam = existingFamiliesData[familyId] || existingFamiliesData["FAM-001"];
+  // ─── TanStack Query: Live query for family details ───
+  const {
+    data: familyData,
+    isLoading,
+    isError,
+    error,
+  } = useFamily(familyId);
 
-  const [familyName, setFamilyName] = useState(initialFam?.name || "");
-  const [familyStatus, setFamilyStatus] = useState<"ACTIVE" | "INACTIVE">(initialFam?.status || "ACTIVE");
-  const [familyInactiveReason, setFamilyInactiveReason] = useState(initialFam?.inactiveReason || "");
-  const [location, setLocation] = useState(initialFam?.location || "");
-  const [region, setRegion] = useState(initialFam?.region || "Karamadai");
-  const [address, setAddress] = useState(initialFam?.address || "");
-  const [members, setMembers] = useState<MemberFormData[]>(initialFam?.members || []);
-  const [prevFamilyId, setPrevFamilyId] = useState(familyId);
+  // ─── TanStack Mutation: Update family & sync members ───
+  const updateMutation = useUpdateFamily();
 
-  if (familyId !== prevFamilyId) {
-    setPrevFamilyId(familyId);
-    const fam = existingFamiliesData[familyId] || existingFamiliesData["FAM-001"];
-    if (fam) {
-      setFamilyName(fam.name);
-      setFamilyStatus(fam.status);
-      setFamilyInactiveReason(fam.inactiveReason || "");
-      setLocation(fam.location);
-      setRegion(fam.region || "Karamadai");
-      setAddress(fam.address);
-      setMembers(fam.members);
-    }
-  }
+  const [familyName, setFamilyName] = useState("");
+  const [familyStatus, setFamilyStatus] = useState<Status>("ACTIVE");
+  const [familyInactiveReason, setFamilyInactiveReason] = useState("");
+  const [location, setLocation] = useState("");
+  const [region, setRegion] = useState("Karamadai");
+  const [address, setAddress] = useState("");
+  const [members, setMembers] = useState<MemberFormData[]>([]);
+
+interface ApiFamilyMember {
+  id: string;
+  name: string;
+  is_head?: boolean;
+  age?: number | null;
+  dob?: string | null;
+  dom?: string | null;
+  gender?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  blood_group?: string | null;
+  status?: string | null;
+  inactive_reason?: string | null;
+  marital_status?: string | null;
+  is_looking_for_alliance?: boolean;
+  occupation?: string | null;
+  church_role?: string | null;
+  role?: string | null;
+}
+
+  // Synchronize query data into editable form state
+  useEffect(() => {
+    if (!familyData) return;
+    const timer = setTimeout(() => {
+      const rawMembers = (familyData.members || []) as ApiFamilyMember[];
+      const head = rawMembers.find((m) => m.is_head) || rawMembers[0];
+      setFamilyName(head?.name ? head.name : `Family #${familyData.id}`);
+      setFamilyStatus(familyData.status === "INACTIVE" ? "INACTIVE" : "ACTIVE");
+      setFamilyInactiveReason(familyData.inactive_reason || "");
+      setLocation(familyData.location || "");
+      setRegion(familyData.region || "Karamadai");
+      setAddress(familyData.address || "");
+      setMembers(
+        rawMembers.map((m) => {
+          const dobStr = m.dob ? m.dob.split("T")[0] : "";
+          const domStr = m.dom ? m.dom.split("T")[0] : "";
+          return {
+            id: m.id,
+            name: m.name,
+            isHead: !!m.is_head,
+            age: m.age ?? (dobStr ? calculateYears(dobStr) : ""),
+            gender: m.gender || "",
+            bloodGroup: m.blood_group || "",
+            dob: dobStr,
+            status: (m.status === "INACTIVE" ? "INACTIVE" : "ACTIVE") as Status,
+            inactiveReason: m.inactive_reason || "",
+            maritalStatus: m.marital_status || "",
+            dateOfMarriage: domStr,
+            yearsOfMarriage: domStr ? calculateYears(domStr) : "",
+            isLookingForAlliance: !!m.is_looking_for_alliance,
+            occupation: m.occupation || "",
+            role: m.church_role || m.role || "",
+            phone: m.phone || "",
+            email: m.email || "",
+          };
+        })
+      );
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [familyData]);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -295,7 +166,152 @@ function EditFamilyContent() {
   const showHeadCheckbox = !otherMemberIsHead;
 
   const [validationError, setValidationError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const editMemberColumns: ColumnDef<MemberFormData>[] = useMemo(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Member Name",
+        headerClassName: "font-bold text-xs",
+        className: "font-semibold text-sm",
+        cell: (member) => (
+          <div>
+            <div className="flex items-center gap-2">
+              <span>{member.name}</span>
+              {member.isHead && (
+                <Badge className="bg-amber-500 text-zinc-950 font-bold text-[10px] flex items-center gap-1 hover:bg-amber-400">
+                  <Crown className="h-2.5 w-2.5" /> Head
+                </Badge>
+              )}
+            </div>
+            {member.phone && (
+              <span
+                className={`text-[11px] block mt-0.5 ${t(
+                  "text-zinc-500",
+                  "text-slate-400",
+                  "text-zinc-400"
+                )}`}
+              >
+                {member.phone}
+              </span>
+            )}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "role",
+        header: "Role",
+        headerClassName: "font-bold text-xs",
+        className: "text-xs",
+        cell: (member) => (
+          <span
+            className={`px-2 py-0.5 rounded-md font-medium ${t(
+              "bg-zinc-100 text-zinc-700",
+              "bg-slate-800 text-slate-300",
+              "bg-zinc-800 text-zinc-300"
+            )}`}
+          >
+            {member.role || "Member"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "age",
+        header: "Age",
+        headerClassName: "font-bold text-xs",
+        cell: (member) => <AgeBadge age={member.age} showAge />,
+      },
+      {
+        accessorKey: "gender",
+        header: "Gender",
+        headerClassName: "font-bold text-xs",
+        className: "text-xs capitalize",
+        cell: (member) => member.gender?.toLowerCase() || "—",
+      },
+      {
+        accessorKey: "bloodGroup",
+        header: "Blood Group",
+        headerClassName: "font-bold text-xs hidden sm:table-cell",
+        className: "text-xs hidden sm:table-cell font-mono text-red-600 dark:text-red-400",
+        cell: (member) => member.bloodGroup || "—",
+      },
+      {
+        accessorKey: "maritalStatus",
+        header: "Marital Status",
+        headerClassName: "font-bold text-xs hidden md:table-cell",
+        className: "text-xs hidden md:table-cell",
+        cell: (member) => (
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="capitalize">
+                {member.maritalStatus ? member.maritalStatus.toLowerCase() : "—"}
+              </span>
+              {member.maritalStatus === "UNMARRIED" && member.isLookingForAlliance && (
+                <Badge
+                  variant="outline"
+                  title="Looking for matrimonial alliance"
+                  className="text-[10px] font-semibold px-2 py-0.5 h-5 bg-pink-500/15 text-pink-700 dark:text-pink-300 border-pink-300 dark:border-pink-500/40 inline-flex items-center gap-1 leading-none shadow-2xs"
+                >
+                  <Heart className="h-2.5 w-2.5 text-pink-500 fill-pink-500/30 shrink-0" />
+                  Alliance
+                </Badge>
+              )}
+            </div>
+            {member.maritalStatus === "MARRIED" && member.dateOfMarriage && (
+              <span
+                className={`text-[10px] font-mono leading-none ${t(
+                  "text-zinc-500",
+                  "text-slate-400",
+                  "text-zinc-400"
+                )}`}
+              >
+                DOM: {member.dateOfMarriage}{" "}
+                {calculateYears(member.dateOfMarriage) !== ""
+                  ? `(${calculateYears(member.dateOfMarriage)} yrs)`
+                  : ""}
+              </span>
+            )}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        headerClassName: "font-bold text-xs",
+        cell: (member) => <StatusBadge status={member.status} />,
+      },
+      {
+        key: "actions",
+        header: "Actions",
+        align: "right",
+        headerClassName: "font-bold text-xs text-right",
+        className: "text-right",
+        cell: (member) => (
+          <div className="flex items-center justify-end gap-1">
+            <button
+              type="button"
+              onClick={() => handleOpenEditMember(member)}
+              className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 cursor-pointer"
+              title="Edit Member"
+            >
+              <Edit2 className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDeleteMember(member.id)}
+              className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 text-zinc-400 hover:text-red-500 cursor-pointer"
+              title="Remove Member"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ),
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [theme]
+  );
+  const isSubmitting = updateMutation.isPending;
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const handleOpenAddMember = () => {
@@ -434,7 +450,7 @@ function EditFamilyContent() {
     setEditingMemberId(null);
   };
 
-  const handleUpdateFamily = (e: React.FormEvent) => {
+  const handleUpdateFamily = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!address.trim()) {
       setValidationError("Residential Address is required.");
@@ -453,13 +469,91 @@ function EditFamilyContent() {
       setValidationError("Please designate at least one member as the Family Head.");
       return;
     }
+    setValidationError("");
 
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      await updateMutation.mutateAsync({
+        id: familyId,
+        data: {
+          location,
+          region,
+          address,
+          status: familyStatus,
+          inactiveReason: familyInactiveReason,
+          members: members.map((m) => ({
+            id: m.id && !m.id.startsWith("MEM-") ? m.id : undefined,
+            name: m.name,
+            isHead: m.isHead,
+            age: m.age ? Number(m.age) : null,
+            gender: m.gender || null,
+            bloodGroup: m.bloodGroup || null,
+            dob: m.dob || null,
+            status: m.status,
+            inactiveReason: m.inactiveReason || null,
+            maritalStatus: m.maritalStatus || null,
+            dateOfMarriage: m.dateOfMarriage || null,
+            isLookingForAlliance: m.isLookingForAlliance ?? false,
+            occupation: m.occupation || null,
+            role: "MEMBER",
+            churchRole: m.role || null,
+            phone: m.phone || null,
+            email: m.email || null,
+          })),
+        },
+      });
+
       setShowSuccessModal(true);
-    }, 500);
+    } catch (err) {
+      console.error("Update error:", err);
+      setValidationError(
+        err instanceof Error ? err.message : "Network error while updating family."
+      );
+    }
   };
+
+  if (!familyId || isError) {
+    return (
+      <div className="max-w-5xl mx-auto py-16 space-y-6">
+        <Link
+          href="/admin/families"
+          className={`inline-flex items-center gap-1.5 text-xs font-semibold transition-colors ${t(
+            "text-zinc-600 hover:text-zinc-950",
+            "text-slate-400 hover:text-slate-100",
+            "text-zinc-400 hover:text-zinc-100"
+          )}`}
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> Back to Church Members Directory
+        </Link>
+        <div
+          className={`p-8 rounded-2xl border text-center space-y-4 ${t(
+            "bg-white border-zinc-200",
+            "bg-[#073642] border-[#094555]",
+            "bg-zinc-900 border-zinc-800"
+          )}`}
+        >
+          <AlertCircle className="h-10 w-10 text-red-500 mx-auto" />
+          <h2 className="text-lg font-bold">Unable to Load Family</h2>
+          <p className={`text-sm ${t("text-zinc-600", "text-slate-400", "text-zinc-400")}`}>
+            {error instanceof Error ? error.message : "No family record found for this ID."}
+          </p>
+          <Button onClick={() => router.push("/admin/families")}>
+            Return to Directory
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="max-w-5xl mx-auto py-24 flex flex-col items-center justify-center space-y-4">
+        <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+        <p className={`text-sm ${t("text-zinc-600", "text-slate-400", "text-zinc-400")}`}>
+          Loading family record...
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-16">
@@ -479,7 +573,7 @@ function EditFamilyContent() {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold font-serif tracking-tight flex items-center gap-2.5">
               <Users className="h-7 w-7 text-amber-500" />
-              Edit Family Record ({familyId})
+              Edit Family Record
             </h1>
             <p className={`text-sm mt-1 ${t("text-zinc-600", "text-slate-400", "text-zinc-400")}`}>
               Update family info, add new household members, or modify member roles.
@@ -507,10 +601,12 @@ function EditFamilyContent() {
       </div>
 
       {validationError && (
-        <div className="p-4 rounded-xl border border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400 text-xs font-semibold flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>{validationError}</span>
-        </div>
+        <BannerAlert
+          variant="error"
+          title="Validation Error"
+          message={validationError}
+          onClose={() => setValidationError("")}
+        />
       )}
 
       {/* ─── CARD 1: FAMILY COMMON DETAILS (TOP) ─── */}
@@ -558,7 +654,7 @@ function EditFamilyContent() {
             </label>
             <NativeSelect
               value={familyStatus}
-              onChange={(e) => setFamilyStatus(e.target.value as "ACTIVE" | "INACTIVE")}
+              onChange={(e) => setFamilyStatus(e.target.value as Status)}
             >
               <option value="ACTIVE">Active</option>
               <option value="INACTIVE">Inactive</option>
@@ -658,110 +754,11 @@ function EditFamilyContent() {
         </div>
 
         {/* Table */}
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-xs">
-          <Table>
-            <TableHeader>
-              <TableRow className={t("bg-zinc-50", "bg-slate-800/60", "bg-zinc-900/60")}>
-                <TableHead className="font-bold text-xs">Member Name</TableHead>
-                <TableHead className="font-bold text-xs">Role</TableHead>
-                <TableHead className="font-bold text-xs">Age</TableHead>
-                <TableHead className="font-bold text-xs">Gender</TableHead>
-                <TableHead className="font-bold text-xs hidden sm:table-cell">Blood Group</TableHead>
-                <TableHead className="font-bold text-xs hidden md:table-cell">Marital Status</TableHead>
-                <TableHead className="font-bold text-xs">Status</TableHead>
-                <TableHead className="font-bold text-xs text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {members.map((member) => (
-                <TableRow key={member.id}>
-                  <TableCell className="font-semibold text-sm">
-                    <div className="flex items-center gap-2">
-                      <span>{member.name}</span>
-                      {member.isHead && (
-                        <Badge className="bg-amber-500 text-zinc-950 font-bold text-[10px] flex items-center gap-1 hover:bg-amber-400">
-                          <Crown className="h-2.5 w-2.5" /> Head
-                        </Badge>
-                      )}
-                    </div>
-                    {member.phone && (
-                      <span className={`text-[11px] block mt-0.5 ${t("text-zinc-500", "text-slate-400", "text-zinc-400")}`}>
-                        {member.phone}
-                      </span>
-                    )}
-                  </TableCell>
-
-                  <TableCell className="text-xs">
-                    <span className={`px-2 py-0.5 rounded-md font-medium ${t("bg-zinc-100 text-zinc-700", "bg-slate-800 text-slate-300", "bg-zinc-800 text-zinc-300")}`}>
-                      {member.role || "Member"}
-                    </span>
-                  </TableCell>
-
-                  <TableCell className="text-xs font-mono">{member.age || "—"}</TableCell>
-                  <TableCell className="text-xs capitalize">{member.gender.toLowerCase()}</TableCell>
-                  <TableCell className="text-xs hidden sm:table-cell font-mono text-red-600 dark:text-red-400">
-                    {member.bloodGroup}
-                  </TableCell>
-                  {/* Marital Status */}
-                  <TableCell className="text-xs hidden md:table-cell">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="capitalize">{member.maritalStatus ? member.maritalStatus.toLowerCase() : "—"}</span>
-                        {member.maritalStatus === "UNMARRIED" && member.isLookingForAlliance && (
-                          <Badge
-                            variant="outline"
-                            title="Looking for matrimonial alliance"
-                            className="text-[10px] font-semibold px-2 py-0.5 h-5 bg-pink-500/15 text-pink-700 dark:text-pink-300 border-pink-300 dark:border-pink-500/40 inline-flex items-center gap-1 leading-none shadow-2xs"
-                          >
-                            <Heart className="h-2.5 w-2.5 text-pink-500 fill-pink-500/30 shrink-0" />
-                            Alliance
-                          </Badge>
-                        )}
-                      </div>
-                      {member.maritalStatus === "MARRIED" && member.dateOfMarriage && (
-                        <span className={`text-[10px] font-mono leading-none ${t("text-zinc-500", "text-slate-400", "text-zinc-400")}`}>
-                          DOM: {member.dateOfMarriage} {calculateYears(member.dateOfMarriage) !== "" ? `(${calculateYears(member.dateOfMarriage)} yrs)` : ""}
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={
-                        member.status === "ACTIVE"
-                          ? "bg-emerald-500/10 text-emerald-700 border-emerald-300 text-[10px]"
-                          : "bg-red-500/10 text-red-600 border-red-300 text-[10px]"
-                      }
-                    >
-                      {member.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEditMember(member)}
-                        className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 cursor-pointer"
-                        title="Edit Member"
-                      >
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteMember(member.id)}
-                        className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 text-zinc-400 hover:text-red-500 cursor-pointer"
-                        title="Remove Member"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable
+          data={members}
+          columns={editMemberColumns}
+          className="rounded-xl shadow-xs"
+        />
 
         {/* Bottom Save Action */}
         <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-3">
@@ -850,12 +847,15 @@ function EditFamilyContent() {
                     onChange={(e) =>
                       setMemberForm({
                         ...memberForm,
-                        status: e.target.value as "ACTIVE" | "INACTIVE",
+                        status: e.target.value as Status,
                       })
                     }
                   >
-                    <option value="ACTIVE">Active</option>
-                    <option value="INACTIVE">Inactive</option>
+                    {STATUS_OPTIONS.map((st) => (
+                      <option key={st.value} value={st.value}>
+                        {st.label}
+                      </option>
+                    ))}
                   </NativeSelect>
                 )}
               </div>
@@ -960,9 +960,11 @@ function EditFamilyContent() {
                   }
                 >
                   <option value="" disabled>Select Gender</option>
-                  <option value="MALE">Male</option>
-                  <option value="FEMALE">Female</option>
-                  <option value="OTHER">Other</option>
+                  {GENDERS.map((g) => (
+                    <option key={g.value} value={g.value}>
+                      {g.label}
+                    </option>
+                  ))}
                 </NativeSelect>
               </div>
             </div>
@@ -982,7 +984,7 @@ function EditFamilyContent() {
                   }
                 >
                   <option value="" disabled>Select Blood Group</option>
-                  {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-", "Unknown"].map((bg) => (
+                  {BLOOD_GROUPS.map((bg) => (
                     <option key={bg} value={bg}>
                       {bg}
                     </option>
@@ -1010,10 +1012,11 @@ function EditFamilyContent() {
                   }}
                 >
                   <option value="" disabled>Select Marital Status</option>
-                  <option value="MARRIED">Married</option>
-                  <option value="UNMARRIED">Unmarried / Single</option>
-                  <option value="DIVORCED">Divorced</option>
-                  <option value="WIDOWED">Widowed</option>
+                  {MARITAL_STATUSES.map((ms) => (
+                    <option key={ms.value} value={ms.value}>
+                      {ms.label}
+                    </option>
+                  ))}
                 </NativeSelect>
               </div>
 
@@ -1029,16 +1032,11 @@ function EditFamilyContent() {
                   onChange={(e) => setMemberForm({ ...memberForm, role: e.target.value })}
                 >
                   <option value="" disabled>Select Church Role</option>
-                  <option value="General Member">General Member</option>
-                  <option value="Pastor">Pastor</option>
-                  <option value="Elder">Elder</option>
-                  <option value="Deacon">Deacon</option>
-                  <option value="Worship Leader">Worship Leader</option>
-                  <option value="Sunday School Teacher">Sunday School Teacher</option>
-                  <option value="Youth Leader">Youth Leader</option>
-                  <option value="Audio/Visual Team">Audio/Visual Team</option>
-                  <option value="Hospitality Team">Hospitality Team</option>
-                  <option value="Choir">Choir</option>
+                  {CHURCH_ROLES.map((role) => (
+                    <option key={role} value={role}>
+                      {role}
+                    </option>
+                  ))}
                 </NativeSelect>
               </div>
             </div>
@@ -1076,9 +1074,8 @@ function EditFamilyContent() {
                       placeholder="Auto from DOM"
                       value={
                         memberForm.dateOfMarriage && calculateYears(memberForm.dateOfMarriage) !== ""
-                          ? `${calculateYears(memberForm.dateOfMarriage)} ${
-                              calculateYears(memberForm.dateOfMarriage) === 1 ? "Year" : "Years"
-                            }${calculateYears(memberForm.dateOfMarriage) === 0 ? " (Newly Married)" : ""}`
+                          ? `${calculateYears(memberForm.dateOfMarriage)} ${calculateYears(memberForm.dateOfMarriage) === 1 ? "Year" : "Years"
+                          }${calculateYears(memberForm.dateOfMarriage) === 0 ? " (Newly Married)" : ""}`
                           : ""
                       }
                       readOnly
@@ -1107,15 +1104,14 @@ function EditFamilyContent() {
                   </span>
                 </div>
                 <label
-                  className={`h-9 flex items-center gap-2.5 px-3 rounded-xl border cursor-pointer select-none transition-colors shrink-0 ${
-                    memberForm.isLookingForAlliance
-                      ? "border-pink-500 bg-pink-500/10 text-pink-900 dark:text-pink-200"
-                      : t(
-                          "border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700",
-                          "border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300",
-                          "border-zinc-800 bg-zinc-900 hover:bg-zinc-850 text-zinc-300"
-                        )
-                  }`}
+                  className={`h-9 flex items-center gap-2.5 px-3 rounded-xl border cursor-pointer select-none transition-colors shrink-0 ${memberForm.isLookingForAlliance
+                    ? "border-pink-500 bg-pink-500/10 text-pink-900 dark:text-pink-200"
+                    : t(
+                      "border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700",
+                      "border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300",
+                      "border-zinc-800 bg-zinc-900 hover:bg-zinc-850 text-zinc-300"
+                    )
+                    }`}
                 >
                   <Checkbox
                     checked={!!memberForm.isLookingForAlliance}

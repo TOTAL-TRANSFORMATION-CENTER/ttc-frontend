@@ -13,14 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable, ColumnDef } from "@/components/ui/data-table";
 import {
   HeartHandshake,
   Plus,
@@ -29,18 +22,9 @@ import {
   Search,
   TrendingUp
 } from "lucide-react";
-import React, { useState } from "react";
-
-interface Offering {
-  id: string;
-  date: string;
-  service: string;
-  type: string;
-  donor: string;
-  amount: number;
-  mode: "UPI / QR" | "Cash" | "Bank Transfer" | "Mixed";
-  receipt: string;
-}
+import React, { useState, useMemo } from "react";
+import type { Offering } from "@/types";
+import { OFFERING_CATEGORIES, PAYMENT_MODES } from "@/constants";
 
 const initialOfferings: Offering[] = [
   {
@@ -146,6 +130,76 @@ export default function OfferingsPage() {
     return matchesSearch && matchesType;
   });
 
+  const offeringColumns: ColumnDef<Offering>[] = useMemo(
+    () => [
+      {
+        accessorKey: "receipt",
+        header: "Receipt #",
+        headerClassName: "font-bold text-xs",
+        className: "font-mono text-xs font-bold text-amber-600 dark:text-amber-400",
+        cell: (off) => off.receipt,
+      },
+      {
+        accessorKey: "date",
+        header: "Date",
+        headerClassName: "font-bold text-xs",
+        className: "text-xs",
+        cell: (off) => off.date,
+      },
+      {
+        accessorKey: "service",
+        header: "Service",
+        headerClassName: "font-bold text-xs",
+        className: "text-xs font-medium",
+        cell: (off) => off.service,
+      },
+      {
+        accessorKey: "type",
+        header: "Category",
+        headerClassName: "font-bold text-xs",
+        cell: (off) => (
+          <Badge variant="outline" className="text-[10px] font-semibold">
+            {off.type}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "donor",
+        header: "Donor",
+        headerClassName: "font-bold text-xs",
+        className: "text-xs",
+        cell: (off) => off.donor,
+      },
+      {
+        accessorKey: "mode",
+        header: "Payment Mode",
+        headerClassName: "font-bold text-xs",
+        className: "text-xs",
+        cell: (off) => (
+          <span
+            className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${t(
+              "bg-zinc-100 text-zinc-700",
+              "bg-slate-800 text-slate-300",
+              "bg-zinc-800 text-zinc-300"
+            )}`}
+          >
+            {off.mode}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "amount",
+        header: "Amount (₹)",
+        align: "right",
+        headerClassName: "font-bold text-xs text-right",
+        className: "text-right font-mono font-bold text-sm",
+        cell: (off) => `₹${off.amount.toLocaleString("en-IN")}`,
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [theme]
+  );
+
   const totalCollected = offerings.reduce((acc, curr) => acc + curr.amount, 0);
 
   return (
@@ -222,57 +276,22 @@ export default function OfferingsPage() {
               onChange={(e) => setFilterType(e.target.value)}
             >
               <option value="ALL">All Categories</option>
-              <option value="Tithe">Tithe</option>
-              <option value="Thanksgiving">Thanksgiving</option>
-              <option value="General Offering">General Offering</option>
-              <option value="Building Fund">Building Fund</option>
-              <option value="Missions & Outreach">Missions</option>
+              {OFFERING_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
             </NativeSelect>
           </div>
         </div>
       </div>
 
       {/* Offerings Table */}
-      <div className={`rounded-2xl border shadow-sm overflow-hidden ${t("bg-white border-zinc-200", "bg-slate-900 border-slate-800", "bg-zinc-950 border-zinc-800")}`}>
-        <Table>
-          <TableHeader>
-            <TableRow className={t("bg-zinc-50", "bg-slate-800/60", "bg-zinc-900/60")}>
-              <TableHead className="font-bold text-xs">Receipt #</TableHead>
-              <TableHead className="font-bold text-xs">Date</TableHead>
-              <TableHead className="font-bold text-xs">Service</TableHead>
-              <TableHead className="font-bold text-xs">Category</TableHead>
-              <TableHead className="font-bold text-xs">Donor</TableHead>
-              <TableHead className="font-bold text-xs">Payment Mode</TableHead>
-              <TableHead className="font-bold text-xs text-right">Amount (₹)</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredOfferings.map((off) => (
-              <TableRow key={off.id}>
-                <TableCell className="font-mono text-xs font-bold text-amber-600 dark:text-amber-400">
-                  {off.receipt}
-                </TableCell>
-                <TableCell className="text-xs">{off.date}</TableCell>
-                <TableCell className="text-xs font-medium">{off.service}</TableCell>
-                <TableCell>
-                  <Badge variant="outline" className="text-[10px] font-semibold">
-                    {off.type}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-xs">{off.donor}</TableCell>
-                <TableCell className="text-xs">
-                  <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${t("bg-zinc-100 text-zinc-700", "bg-slate-800 text-slate-300", "bg-zinc-800 text-zinc-300")}`}>
-                    {off.mode}
-                  </span>
-                </TableCell>
-                <TableCell className="text-right font-mono font-bold text-sm">
-                  ₹{off.amount.toLocaleString("en-IN")}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable
+        data={filteredOfferings}
+        columns={offeringColumns}
+        emptyMessage="No Sunday offering transactions match your search filter."
+      />
 
       {/* Record Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -313,11 +332,11 @@ export default function OfferingsPage() {
                 Offering Type
               </label>
               <NativeSelect value={newType} onChange={(e) => setNewType(e.target.value)}>
-                <option value="Tithe">Tithe (10%)</option>
-                <option value="Thanksgiving">Thanksgiving</option>
-                <option value="General Offering">General Offering</option>
-                <option value="Building Fund">Building Fund</option>
-                <option value="Missions & Outreach">Missions & Outreach</option>
+                {OFFERING_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
               </NativeSelect>
             </div>
 
@@ -355,10 +374,11 @@ export default function OfferingsPage() {
                 value={newMode}
                 onChange={(e) => setNewMode(e.target.value as Offering["mode"])}
               >
-                <option value="UPI / QR">UPI / QR Code</option>
-                <option value="Cash">Cash in Envelope</option>
-                <option value="Bank Transfer">Bank Transfer / NEFT</option>
-                <option value="Mixed">Mixed Modes</option>
+                {PAYMENT_MODES.map((pm) => (
+                  <option key={pm} value={pm}>
+                    {pm}
+                  </option>
+                ))}
               </NativeSelect>
             </div>
 

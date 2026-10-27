@@ -69,6 +69,7 @@ export default function DashboardPage() {
 
   // Fetch authenticated user
   useEffect(() => {
+    document.title = "Member Dashboard | Total Transformation Center";
     let isMounted = true;
 
     async function checkAuth() {
