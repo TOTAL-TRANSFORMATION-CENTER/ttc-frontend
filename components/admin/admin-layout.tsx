@@ -4,9 +4,11 @@ import { useTheme } from "@/components/ttc/theme-provider";
 import ThemeSwitcher from "@/components/ttc/theme-switcher";
 import {
   HeartHandshake,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Menu,
+  ShieldAlert,
   ShieldCheck,
   User,
   UserPlus,
@@ -19,12 +21,14 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import React, { useState, useEffect, useMemo } from "react";
 import { useFamilyCount } from "@/hooks/use-families";
+import { useCurrentUser, getInitials, useAuthActions } from "@/hooks/use-auth";
 
 interface SidebarItem {
   href: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: string;
+  hasActionDot?: boolean;
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -33,8 +37,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { data: familyCount } = useFamilyCount();
+  const { data: currentUser, isLoading } = useCurrentUser();
+  const { clearSession } = useAuthActions();
 
-  // Dynamic sidebar items with live database-driven family count
+  // User details are loading until API query completes and returns a valid name
+  const isUserLoading = isLoading || !currentUser?.name;
+  const initials = getInitials(currentUser?.name);
+  const displayName = currentUser?.name || "";
+  const displayRole = currentUser?.role || "ADMIN";
+
+  const [isBannerDismissed, setIsBannerDismissed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return sessionStorage.getItem("ttc_dismiss_reset_banner") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const handleDismissBanner = () => {
+    setIsBannerDismissed(true);
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("ttc_dismiss_reset_banner", "true");
+    }
+  };
+
+  // Dynamic sidebar items with live database-driven family count and settings action dot
   const sidebarItems: SidebarItem[] = useMemo(() => [
     { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
     {
@@ -47,10 +75,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: "/admin/accounts", label: "Accounts", icon: Wallet },
     { href: "/admin/new-commers", label: "New commers", icon: UserPlus, badge: "8 New" },
     { href: "/admin/admin-management", label: "Admin management", icon: ShieldCheck },
-  ], [familyCount]);
+    {
+      href: "/admin/settings",
+      label: "Change password",
+      icon: KeyRound,
+      hasActionDot: Boolean(!isUserLoading && currentUser?.isReset),
+    },
+  ], [familyCount, isUserLoading, currentUser?.isReset]);
 
   const handleLogout = async () => {
     try {
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("ttc_dismiss_reset_banner");
+      }
+      clearSession();
       await fetch("/api/auth/logout", { method: "POST" });
     } catch {
       // Ignore
@@ -69,6 +107,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (href === "/admin/families") {
       return pathname === href || pathname.startsWith("/admin/family");
     }
+    if (href === "/admin/settings") {
+      return (
+        pathname === "/admin/settings" ||
+        pathname.startsWith("/admin/settings/") ||
+        pathname === "/admin/change-password" ||
+        pathname.startsWith("/admin/change-password/")
+      );
+    }
     return pathname === href || pathname.startsWith(href + "/");
   };
 
@@ -85,6 +131,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       "/admin/accounts": "Accounts & Treasury | TTC Admin Portal",
       "/admin/new-commers": "New Comers & Visitors | TTC Admin Portal",
       "/admin/admin-management": "Admin Management & Access Control | TTC Admin Portal",
+      "/admin/settings": "Change Password | TTC Admin Portal",
+      "/admin/change-password": "Change Password | TTC Admin Portal",
     };
 
     const matched = Object.entries(pageTitleMap).find(([path]) => pathname.startsWith(path));
@@ -190,20 +238,38 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     <span>{item.label}</span>
                   </div>
 
-                  {item.badge && (
-                    <span
-                      className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${active
-                          ? "bg-zinc-950 text-amber-400"
-                          : t(
-                            "bg-zinc-200 text-zinc-700",
-                            "bg-slate-800 text-slate-300",
-                            "bg-zinc-800 text-zinc-300"
-                          )
+                  <div className="flex items-center gap-2">
+                    {item.hasActionDot && (
+                      <span
+                        className="relative flex h-2.5 w-2.5 shrink-0"
+                        title="Action required: Password reset"
+                        aria-label="Action required: Password reset"
+                      >
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                        <span
+                          className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                            active ? "bg-zinc-950 ring-2 ring-amber-400" : "bg-amber-500"
+                          }`}
+                        />
+                      </span>
+                    )}
+
+                    {item.badge && (
+                      <span
+                        className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${
+                          active
+                            ? "bg-zinc-950 text-amber-400"
+                            : t(
+                                "bg-zinc-200 text-zinc-700",
+                                "bg-slate-800 text-slate-300",
+                                "bg-zinc-800 text-zinc-300"
+                              )
                         }`}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                  </div>
                 </Link>
               );
             })}
@@ -217,26 +283,62 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               "border-zinc-800/80"
             )}`}
           >
-            <div
-              className={`p-3 rounded-xl border flex items-center justify-between ${t(
-                "bg-zinc-50 border-zinc-200/80",
-                "bg-slate-950 border-slate-800",
-                "bg-zinc-900 border-zinc-800"
-              )}`}
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="h-8 w-8 rounded-full bg-amber-500 text-zinc-950 font-bold flex items-center justify-center text-xs">
-                  SA
+            {isUserLoading ? (
+              <div
+                className={`p-3 rounded-xl border flex items-center gap-2.5 transition-colors select-none ${t(
+                  "bg-zinc-50 border-zinc-200/80",
+                  "bg-slate-950 border-slate-800",
+                  "bg-zinc-900 border-zinc-800"
+                )}`}
+                aria-busy="true"
+                aria-label="Loading administrator profile"
+              >
+                {/* Glowing Loader Avatar with spinning indicator */}
+                <div className="relative h-8 w-8 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0">
+                  <div className="h-4 w-4 rounded-full border-2 border-amber-500/30 border-t-amber-500 animate-spin" />
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold leading-tight">Administrator</span>
-                  <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Active Session
-                  </span>
+
+                {/* Shimmer Placeholder Content */}
+                <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+                  <div className="h-3 w-28 rounded-md bg-zinc-200 dark:bg-zinc-800 animate-pulse" />
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping shrink-0" />
+                    <span className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 tracking-tight animate-pulse truncate">
+                      Loading profile...
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div
+                className={`p-3 rounded-xl border flex items-center justify-between transition-colors ${t(
+                  "bg-zinc-50 border-zinc-200/80",
+                  "bg-slate-950 border-slate-800",
+                  "bg-zinc-900 border-zinc-800"
+                )}`}
+                title={`${displayName}${currentUser?.email ? ` (${currentUser.email})` : ""}\nRole: ${displayRole}`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="h-8 w-8 rounded-full bg-amber-500 text-zinc-950 font-bold flex items-center justify-center text-xs shrink-0 select-none shadow-sm">
+                    {initials}
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span
+                      className="text-xs font-bold leading-tight truncate text-zinc-900 dark:text-zinc-100"
+                      title={displayName}
+                    >
+                      {displayName}
+                    </span>
+                    <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1 truncate">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                      <span className="truncate">
+                        {currentUser?.role ? `${currentUser.role} • Active` : "Active Session"}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex items-center gap-2">
               <Link
@@ -298,12 +400,86 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
 
           <div className="flex items-center gap-3">
+            {isUserLoading ? (
+              <div
+                className="hidden sm:flex items-center gap-2 pr-2 border-r border-zinc-200 dark:border-zinc-800 select-none"
+                aria-busy="true"
+                aria-label="Loading administrator profile"
+              >
+                <div className="h-7 w-7 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0">
+                  <div className="h-3.5 w-3.5 rounded-full border-2 border-amber-500/30 border-t-amber-500 animate-spin" />
+                </div>
+                <div className="flex flex-col gap-1 text-left min-w-[70px]">
+                  <div className="h-2.5 w-18 rounded bg-zinc-200 dark:bg-zinc-800 animate-pulse" />
+                  <div className="h-2 w-12 rounded bg-zinc-200/60 dark:bg-zinc-850 animate-pulse" />
+                </div>
+              </div>
+            ) : (
+              <div className="hidden sm:flex items-center gap-2 pr-2 border-r border-zinc-200 dark:border-zinc-800">
+                <div className="h-7 w-7 rounded-full bg-amber-500 text-zinc-950 font-bold flex items-center justify-center text-[11px] select-none shadow-sm">
+                  {initials}
+                </div>
+                <div className="flex flex-col text-left">
+                  <span className="text-xs font-bold leading-none truncate max-w-[130px]" title={displayName}>
+                    {displayName}
+                  </span>
+                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium leading-tight">
+                    {displayRole}
+                  </span>
+                </div>
+              </div>
+            )}
             <ThemeSwitcher />
           </div>
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6">
+          {/* ─── Mandatory Password Reset Reminder Banner (Dashboard Only & Dismissible) ─── */}
+          {currentUser?.isReset && pathname === "/admin/dashboard" && !isBannerDismissed && (
+            <div
+              className={`rounded-2xl p-4 sm:p-5 border flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm transition-all animate-in fade-in duration-200 relative ${t(
+                "bg-amber-50 border-amber-300 text-amber-950",
+                "bg-amber-950/40 border-amber-500/40 text-amber-100",
+                "bg-amber-950/30 border-amber-500/30 text-amber-200"
+              )}`}
+            >
+              <div className="flex items-start gap-3.5 pr-8 sm:pr-0">
+                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5">
+                  <ShieldAlert className="h-5 w-5 animate-pulse" />
+                </div>
+                <div className="space-y-0.5">
+                  <h4 className="font-bold text-sm leading-tight">
+                    Action Required: Please Reset Your Password
+                  </h4>
+                  <p className="text-xs sm:text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
+                    You are currently signed in with a temporary generated password. Please update your password to secure your administrator account.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 shrink-0 sm:self-center">
+                <Link
+                  href="/admin/settings"
+                  className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs shadow-md transition-all hover:scale-105 flex items-center gap-1.5 shrink-0"
+                >
+                  <KeyRound className="h-3.5 w-3.5" />
+                  Reset Password Now
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={handleDismissBanner}
+                  className="absolute top-3.5 right-3.5 sm:static p-1.5 rounded-xl text-amber-800/70 dark:text-amber-200/70 hover:text-amber-950 dark:hover:text-amber-100 hover:bg-amber-500/20 transition-colors cursor-pointer shrink-0"
+                  title="Dismiss reminder from dashboard"
+                  aria-label="Dismiss reminder from dashboard"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
           {children}
         </main>
       </div>

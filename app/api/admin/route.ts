@@ -40,6 +40,7 @@ export async function GET() {
       maritalStatus: adm.members.marital_status,
       familyAddress: adm.members.family?.address || null,
       familyRegion: adm.members.family?.region || null,
+      isReset: adm.is_reset,
     }));
 
     return NextResponse.json({
@@ -130,6 +131,7 @@ export async function POST(request: NextRequest) {
           role: normalizedRole,
           password: hashedPassword,
           is_active: true, // "Make the user is_active as true when we create a admin."
+          is_reset: true, // "once we store the generated password for the admin while creation or editing the admin just make this column value as true"
           created_at: new Date(),
           last_modified: new Date(),
         },
@@ -137,6 +139,7 @@ export async function POST(request: NextRequest) {
           role: normalizedRole,
           password: hashedPassword,
           is_active: true,
+          is_reset: true,
           last_modified: new Date(),
         },
         include: {
@@ -168,6 +171,7 @@ export async function POST(request: NextRequest) {
       email: createdAdmin.members.email,
       role: createdAdmin.role || role.trim(),
       isActive: createdAdmin.is_active,
+      isReset: createdAdmin.is_reset,
       createdAt: createdAdmin.created_at.toISOString(),
       lastModified: createdAdmin.last_modified.toISOString(),
       churchRole: createdAdmin.members.church_role || createdAdmin.members.role,

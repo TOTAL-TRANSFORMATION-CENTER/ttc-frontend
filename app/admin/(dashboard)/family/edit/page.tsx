@@ -18,6 +18,7 @@ import { NativeSelect } from "@/components/ui/select";
 import { DataTable, ColumnDef } from "@/components/ui/data-table";
 import { Textarea } from "@/components/ui/textarea";
 import { BannerAlert } from "@/components/ui/banner-alert";
+import FamilyLocationMap from "@/components/admin/family-location-map";
 import { calculateYears, cn } from "@/lib/utils";
 import {
   Activity,
@@ -91,25 +92,25 @@ function EditFamilyContent() {
   const [address, setAddress] = useState("");
   const [members, setMembers] = useState<MemberFormData[]>([]);
 
-interface ApiFamilyMember {
-  id: string;
-  name: string;
-  is_head?: boolean;
-  age?: number | null;
-  dob?: string | null;
-  dom?: string | null;
-  gender?: string | null;
-  phone?: string | null;
-  email?: string | null;
-  blood_group?: string | null;
-  status?: string | null;
-  inactive_reason?: string | null;
-  marital_status?: string | null;
-  is_looking_for_alliance?: boolean;
-  occupation?: string | null;
-  church_role?: string | null;
-  role?: string | null;
-}
+  interface ApiFamilyMember {
+    id: string;
+    name: string;
+    is_head?: boolean;
+    age?: number | null;
+    dob?: string | null;
+    dom?: string | null;
+    gender?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    blood_group?: string | null;
+    status?: string | null;
+    inactive_reason?: string | null;
+    marital_status?: string | null;
+    is_looking_for_alliance?: boolean;
+    occupation?: string | null;
+    church_role?: string | null;
+    role?: string | null;
+  }
 
   // Synchronize query data into editable form state
   useEffect(() => {
@@ -682,6 +683,7 @@ interface ApiFamilyMember {
             </label>
             <Input
               type="text"
+              placeholder="https://maps.google.com/?q=... or Landmark"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
             />
@@ -719,6 +721,14 @@ interface ApiFamilyMember {
               className="rounded-xl min-h-[85px] text-sm"
             />
           </div>
+
+          {/* Location Google Maps Preview (rendered when location link is provided, hidden when empty) */}
+          <FamilyLocationMap
+            location={location}
+            address={address}
+            familyName={familyName || "Family"}
+            className="md:col-span-2"
+          />
         </div>
       </div>
 
@@ -1196,7 +1206,7 @@ interface ApiFamilyMember {
 
       {/* Success Dialog */}
       <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-        <DialogContent
+        <DialogContent showCloseButton={false}
           className={`max-w-md ${t(
             "bg-white border-zinc-200 text-zinc-900",
             "bg-slate-900 border-slate-700 text-slate-100",

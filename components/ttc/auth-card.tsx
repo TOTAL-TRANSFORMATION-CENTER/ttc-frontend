@@ -2,11 +2,13 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Loader2, Sparkles, CheckCircle2, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Loader2, CheckCircle2, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { BannerAlert } from "@/components/ui/banner-alert";
+import { useQueryClient } from "@tanstack/react-query";
+import { setCachedUser } from "@/hooks/use-auth";
 
 interface AuthCardProps {
   theme: "light" | "solarised" | "dark";
@@ -16,6 +18,7 @@ interface AuthCardProps {
 
 export default function AuthCard({ theme, mode, onClose }: AuthCardProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const isAdmin = mode === "admin";
 
   // Form states
@@ -74,17 +77,28 @@ export default function AuthCard({ theme, mode, onClose }: AuthCardProps) {
         return;
       }
 
+      // Cache authenticated user profile immediately for seamless UI transition
+      if (data.user) {
+        setCachedUser(data.user);
+        queryClient.setQueryData(["currentUser"], data.user);
+        queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      }
+
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("ttc_dismiss_reset_banner");
+      }
+
       setSuccessMsg(
         isAdmin
-          ? "Welcome, Administrator! Launching management portal..."
-          : "Welcome back! Redirecting to your dashboard..."
+          ? "Welcome, Administrator!"
+          : "Welcome back!"
       );
 
       // Short delay for smooth visual feedback before redirect
       setTimeout(() => {
         const searchParams = new URLSearchParams(window.location.search);
         const returnUrl = searchParams.get("returnUrl");
-        const target = returnUrl || (isAdmin ? "/admin/families" : "/dashboard");
+        const target = returnUrl || (isAdmin ? "/admin/dashboard" : "/dashboard");
         router.push(target);
         router.refresh();
       }, 500);
@@ -97,18 +111,6 @@ export default function AuthCard({ theme, mode, onClose }: AuthCardProps) {
       );
       setIsLoading(false);
     }
-  };
-
-  const handleFillDemo = () => {
-    setIdentifier("+919876543210");
-    setPassword("SecurePassword123");
-    setError("");
-  };
-
-  const handleFillAdminDemo = () => {
-    setIdentifier("admin@ttc.org");
-    setPassword("Admin123!");
-    setError("");
   };
 
   // Theme-specific styles mapping
@@ -219,29 +221,10 @@ export default function AuthCard({ theme, mode, onClose }: AuthCardProps) {
         {/* Dynamic Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center">
               <label className={`text-xs font-semibold ${labelStyles[theme]}`} htmlFor="identifier">
                 {isAdmin ? "Admin Email or Phone" : "Phone Number"}
               </label>
-              {isAdmin ? (
-                <button
-                  type="button"
-                  onClick={handleFillAdminDemo}
-                  className="text-[11px] text-amber-600 dark:text-amber-400 hover:underline inline-flex items-center gap-1 font-semibold cursor-pointer"
-                >
-                  <Sparkles className="h-3 w-3" />
-                  Fill Test Admin
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleFillDemo}
-                  className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1 font-medium cursor-pointer"
-                >
-                  <Sparkles className="h-3 w-3" />
-                  Fill Demo
-                </button>
-              )}
             </div>
             <Input
               id="identifier"

@@ -415,16 +415,29 @@ export default function AdminManagementPage() {
         header: "Status",
         headerClassName: "font-bold text-xs",
         cell: (adm) => (
-          <Badge
-            variant="outline"
-            className={
-              adm.isActive
-                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/30 text-[10px] font-semibold"
-                : "bg-red-500/10 text-red-600 dark:text-red-400 border-red-300 dark:border-red-500/30 text-[10px] font-semibold"
-            }
-          >
-            {adm.isActive ? "Active" : "Inactive"}
-          </Badge>
+          <div className="flex flex-col gap-1 items-start">
+            <Badge
+              variant="outline"
+              className={
+                adm.isActive
+                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/30 text-[10px] font-semibold"
+                  : "bg-red-500/10 text-red-600 dark:text-red-400 border-red-300 dark:border-red-500/30 text-[10px] font-semibold"
+              }
+            >
+              {adm.isActive ? "Active" : "Inactive"}
+            </Badge>
+            {adm.isReset ? (
+              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                Reset Pending
+              </span>
+            ) : (
+              <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium flex items-center gap-1">
+                <Check className="h-2.5 w-2.5 text-emerald-500" />
+                Password Set
+              </span>
+            )}
+          </div>
         ),
       },
       {
@@ -1025,8 +1038,8 @@ export default function AdminManagementPage() {
                   value={editIsActive ? "ACTIVE" : "INACTIVE"}
                   onChange={(e) => setEditIsActive(e.target.value === "ACTIVE")}
                 >
-                  <option value="ACTIVE">Active (Can log in &amp; access system)</option>
-                  <option value="INACTIVE">Inactive (Login blocked with error message)</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
                 </NativeSelect>
 
                 {!editIsActive && (

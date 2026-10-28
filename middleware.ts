@@ -72,7 +72,7 @@ export async function middleware(request: NextRequest) {
   if (pathname === "/admin" && verifiedPayload?.isActive) {
     const roleUpper = (verifiedPayload.role || "").toUpperCase();
     if (roleUpper.includes("ADMIN")) {
-      return NextResponse.redirect(new URL("/admin/families", request.url));
+      return NextResponse.redirect(new URL("/admin/dashboard", request.url));
     }
   }
 

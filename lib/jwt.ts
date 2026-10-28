@@ -16,6 +16,7 @@ export interface AuthTokenPayload {
   email: string | null;
   phone: string | null;
   isActive: boolean;
+  isReset?: boolean;
   type?: "access" | "refresh";
 }
 
@@ -30,11 +31,11 @@ const JWT_SECRET =
 const JWT_SECRET_BYTES = new TextEncoder().encode(JWT_SECRET);
 
 // ─── Token Lifespans ───
-export const ACCESS_TOKEN_EXPIRY = "15m"; // 15 minutes
-export const REFRESH_TOKEN_EXPIRY = "7d"; // 7 days
+export const ACCESS_TOKEN_EXPIRY = "12h"; // 12 hours
+export const REFRESH_TOKEN_EXPIRY = "24h"; // 24 hours
 
-export const ACCESS_TOKEN_MAX_AGE = 15 * 60; // 15 mins in seconds (900s)
-export const REFRESH_TOKEN_MAX_AGE = 7 * 24 * 60 * 60; // 7 days in seconds (604,800s)
+export const ACCESS_TOKEN_MAX_AGE = 12 * 60 * 60; // 12 hours in seconds (43,200s)
+export const REFRESH_TOKEN_MAX_AGE = 24 * 60 * 60; // 24 hours in seconds (86,400s)
 
 // ─── Cookie Names ───
 export const ACCESS_TOKEN_COOKIE = "ttc_access_token";
@@ -48,7 +49,7 @@ export const COOKIE_CONFIG = {
 };
 
 /**
- * Creates a short-lived access token (15m) using jsonwebtoken
+ * Creates an access token (12h) using jsonwebtoken
  */
 export function signAccessToken(payload: AuthTokenPayload): string {
   return jwt.sign(
@@ -65,7 +66,7 @@ export function signAccessToken(payload: AuthTokenPayload): string {
 }
 
 /**
- * Creates a long-lived refresh token (7d) using jsonwebtoken
+ * Creates a refresh token (24h) using jsonwebtoken
  */
 export function signRefreshToken(payload: AuthTokenPayload): string {
   return jwt.sign(

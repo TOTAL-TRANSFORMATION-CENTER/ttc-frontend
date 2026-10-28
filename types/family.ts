@@ -170,6 +170,7 @@ export interface AdminItem {
   maritalStatus?: string | null;
   familyAddress?: string | null;
   familyRegion?: string | null;
+  isReset?: boolean;
 }
 
 /**

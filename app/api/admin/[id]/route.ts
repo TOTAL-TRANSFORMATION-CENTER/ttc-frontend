@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { hashPassword } from "@/lib/password";
 import type { AdminItem, UpdateAdminDto } from "@/types";
 
@@ -52,6 +53,7 @@ export async function GET(
       maritalStatus: adm.members.marital_status,
       familyAddress: adm.members.family?.address || null,
       familyRegion: adm.members.family?.region || null,
+      isReset: adm.is_reset,
     };
 
     return NextResponse.json({ success: true, data: formatted });
@@ -97,7 +99,7 @@ export async function PUT(
     }
 
     const updatedAdmin = await prisma.$transaction(async (tx) => {
-      const updateData: Record<string, unknown> = {
+      const updateData: Prisma.adminUpdateInput = {
         last_modified: new Date(),
       };
 
@@ -115,6 +117,7 @@ export async function PUT(
           throw new Error("Password must be at least 6 characters long.");
         }
         updateData.password = await hashPassword(password.trim());
+        updateData.is_reset = true; // Setting generated/edited password requires admin to reset
       }
 
       const adminRecord = await tx.admin.update({
@@ -160,6 +163,7 @@ export async function PUT(
       maritalStatus: updatedAdmin.members.marital_status,
       familyAddress: updatedAdmin.members.family?.address || null,
       familyRegion: updatedAdmin.members.family?.region || null,
+      isReset: updatedAdmin.is_reset,
     };
 
     return NextResponse.json({

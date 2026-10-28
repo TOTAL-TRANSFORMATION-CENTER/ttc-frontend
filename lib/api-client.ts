@@ -13,17 +13,22 @@ export async function apiClient(url: string, options: RequestInit = {}): Promise
   const config: RequestInit = {
     ...options,
     headers: defaultHeaders,
-    credentials: "same-origin", // Guarantees cookies are sent
+    credentials: "include", // Guarantees cookies are sent
   };
 
   let response = await fetch(url, config);
 
-  // If 401 Unauthorized and not already calling auth endpoints
-  if (response.status === 401 && !url.includes("/api/auth/")) {
+  // If 401 Unauthorized, automatically try to refresh token except on login/refresh/logout
+  const isAuthActionEndpoint =
+    url.includes("/api/auth/login") ||
+    url.includes("/api/auth/refresh") ||
+    url.includes("/api/auth/logout");
+
+  if (response.status === 401 && !isAuthActionEndpoint) {
     try {
       const refreshRes = await fetch("/api/auth/refresh", {
         method: "POST",
-        credentials: "same-origin",
+        credentials: "include",
       });
 
       if (refreshRes.ok) {

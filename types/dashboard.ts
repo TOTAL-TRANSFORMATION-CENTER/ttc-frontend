@@ -42,6 +42,18 @@ export interface NewComer {
   assignedTo: string;
 }
 
+export interface CurrentUser {
+  id: string;
+  memberId?: string;
+  name: string;
+  role: string;
+  churchRole?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  isActive?: boolean;
+  isReset?: boolean;
+}
+
 export interface AdminUser {
   id: string;
   name: string;

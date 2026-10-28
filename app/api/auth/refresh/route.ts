@@ -88,6 +88,7 @@ export async function POST(request: NextRequest) {
       email: admin.members.email,
       phone: admin.members.phone,
       isActive: admin.is_active,
+      isReset: admin.is_reset,
     };
 
     // 4. Issue new tokens (Access Token + Rotated Refresh Token)

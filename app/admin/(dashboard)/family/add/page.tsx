@@ -18,6 +18,7 @@ import { NativeSelect } from "@/components/ui/select";
 import { DataTable, ColumnDef } from "@/components/ui/data-table";
 import { Textarea } from "@/components/ui/textarea";
 import { BannerAlert } from "@/components/ui/banner-alert";
+import FamilyLocationMap from "@/components/admin/family-location-map";
 import { calculateYears, cn } from "@/lib/utils";
 import {
   Activity,
@@ -652,6 +653,14 @@ export default function AddFamilyPage() {
               className="rounded-xl min-h-[85px] text-sm"
             />
           </div>
+
+          {/* Location Google Maps Preview (rendered when location link is provided, hidden when empty) */}
+          <FamilyLocationMap
+            location={location}
+            address={address}
+            familyName={headMember?.name ? `${headMember.name}'s Family` : familyName || "Family"}
+            className="md:col-span-2"
+          />
         </div>
       </div>
 

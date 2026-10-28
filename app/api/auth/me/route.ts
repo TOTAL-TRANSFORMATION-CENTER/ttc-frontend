@@ -1,30 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
-import { extractTokenFromRequest, verifyAuthToken } from "@/lib/jwt";
+import {
+  extractTokenFromRequest,
+  verifyAuthToken,
+  REFRESH_TOKEN_COOKIE,
+  signAccessToken,
+  signRefreshToken,
+  setAuthCookies,
+} from "@/lib/jwt";
 import { prisma } from "@/lib/prisma";
 
 // ─── GET: Return currently authenticated user profile ───
 export async function GET(request: NextRequest) {
   try {
     const token = extractTokenFromRequest(request);
+    let payload = token ? await verifyAuthToken(token) : null;
+    let shouldRotateTokens = false;
 
-    if (!token) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Unauthorized: No active authentication session found.",
-          code: 401,
-        },
-        { status: 401 }
-      );
+    // Fallback: If access token is missing or expired, check refresh token
+    if (!payload || !payload.id) {
+      const refreshToken = request.cookies.get(REFRESH_TOKEN_COOKIE)?.value;
+      if (refreshToken) {
+        const refreshPayload = await verifyAuthToken(refreshToken);
+        if (refreshPayload && refreshPayload.type === "refresh" && refreshPayload.id) {
+          payload = refreshPayload;
+          shouldRotateTokens = true;
+        }
+      }
     }
-
-    const payload = await verifyAuthToken(token);
 
     if (!payload || !payload.id) {
       return NextResponse.json(
         {
           success: false,
-          message: "Unauthorized: Authentication session has expired or is invalid.",
+          message: "Unauthorized: No active authentication session found.",
           code: 401,
         },
         { status: 401 }
@@ -58,19 +66,31 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({
+    const userData = {
+      id: admin.id,
+      memberId: admin.member_id,
+      name: admin.members.name,
+      role: admin.role || "ADMIN",
+      churchRole: admin.members.church_role,
+      email: admin.members.email,
+      phone: admin.members.phone,
+      isActive: admin.is_active,
+      isReset: admin.is_reset,
+    };
+
+    const response = NextResponse.json({
       success: true,
-      user: {
-        id: admin.id,
-        memberId: admin.member_id,
-        name: admin.members.name,
-        role: admin.role || "ADMIN",
-        churchRole: admin.members.church_role,
-        email: admin.members.email,
-        phone: admin.members.phone,
-        isActive: admin.is_active,
-      },
+      user: userData,
     });
+
+    // If auto-refreshed via refresh token, issue fresh cookies immediately
+    if (shouldRotateTokens) {
+      const newAccessToken = signAccessToken(userData);
+      const newRefreshToken = signRefreshToken(userData);
+      setAuthCookies(response, newAccessToken, newRefreshToken);
+    }
+
+    return response;
   } catch (error) {
     console.error("GET /api/auth/me error:", error);
     return NextResponse.json(
