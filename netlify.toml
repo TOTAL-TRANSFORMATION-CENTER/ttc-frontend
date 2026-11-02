@@ -1,11 +1,11 @@
 [build]
-  command = "prisma generate && next build"
+  command = "prisma generate && prisma migrate deploy && next build"
   publish = ".next"
 
 [build.environment]
   NODE_VERSION = "22"
   SECRETS_SCAN_ENABLED = "true"
-  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_APP_URL,YOUTUBE_CHANNEL_ID,YOUTUBE_HANDLE"
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_REDUX_PERSIST_KEY,YOUTUBE_CHANNEL_ID,YOUTUBE_HANDLE"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
