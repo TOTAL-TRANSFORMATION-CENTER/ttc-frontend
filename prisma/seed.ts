@@ -1,12 +1,119 @@
 import { PrismaClient } from "@prisma/client";
 import { hashPassword } from "../lib/password";
+import { ALL_PAGE_ROUTE_KEYS } from "../constants";
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log("🌱 Starting database seeding...");
 
-  // Check if an admin already exists
+  // ─── 1. Seed Categories & Category Values ───
+  console.log("📦 Seeding mandatory system categories (REGION, CHURCH_ROLE)...");
+
+  // A. Region Category
+  const regionCategory = await prisma.categories.upsert({
+    where: { code: "REGION" },
+    update: {},
+    create: {
+      code: "REGION",
+      name: "Region",
+      description: "Geographical church fellowship regions",
+    },
+  });
+
+  const defaultRegions = [
+    { code: "KARAMADAI", label: "Karamadai", sort_order: 1 },
+    { code: "METTUPALAYAM", label: "Mettupalayam", sort_order: 2 },
+    { code: "NARASIMANAICKENPALAYAM", label: "Narasimanaickenpalayam", sort_order: 3 },
+    { code: "PERIYANAICKENPALAYAM", label: "Periyanaickenpalayam", sort_order: 4 },
+    { code: "VEERAPANDI", label: "Veerapandi", sort_order: 5 },
+  ];
+
+  for (const reg of defaultRegions) {
+    const existingVal = await prisma.category_values.findFirst({
+      where: {
+        category_id: regionCategory.id,
+        code: reg.code,
+      },
+    });
+
+    if (!existingVal) {
+      await prisma.category_values.create({
+        data: {
+          category_id: regionCategory.id,
+          code: reg.code,
+          label: reg.label,
+          sort_order: reg.sort_order,
+          is_active: true,
+        },
+      });
+    }
+  }
+  console.log("   ✅ Region category & values verified.");
+
+  // B. Church Roles Category
+  const churchRoleCategory = await prisma.categories.upsert({
+    where: { code: "CHURCH_ROLE" },
+    update: {},
+    create: {
+      code: "CHURCH_ROLE",
+      name: "Church Roles",
+      description: "Dynamic functional job assignments within our church",
+    },
+  });
+
+  const defaultChurchRoles = [
+    { code: "PASTOR", label: "Senior Pastor", sort_order: 1 },
+    { code: "YOUTH_LEADER", label: "Youth Leader", sort_order: 2 },
+    { code: "CHOIR_MEMBER", label: "Choir Member", sort_order: 3 },
+    { code: "DEACON", label: "Deacon / Elder", sort_order: 4 },
+    { code: "SUNDAY_SCHOOL", label: "Sunday School Teacher", sort_order: 5 },
+    { code: "USHER", label: "Usher / Hospitality", sort_order: 6 },
+    { code: "MEDIA_TECH", label: "Sound & Media Team", sort_order: 7 },
+  ];
+
+  for (const role of defaultChurchRoles) {
+    const existingVal = await prisma.category_values.findFirst({
+      where: {
+        category_id: churchRoleCategory.id,
+        code: role.code,
+      },
+    });
+
+    if (!existingVal) {
+      await prisma.category_values.create({
+        data: {
+          category_id: churchRoleCategory.id,
+          code: role.code,
+          label: role.label,
+          sort_order: role.sort_order,
+          is_active: true,
+        },
+      });
+    }
+  }
+  console.log("   ✅ Church Role category & values verified.");
+
+  // ─── 2. Update existing Super Admins with empty page_routes ───
+  const emptySuperAdmins = await prisma.admin.findMany({
+    where: {
+      role: "SUPER ADMIN",
+      page_routes: { isEmpty: true },
+    },
+  });
+
+  if (emptySuperAdmins.length > 0) {
+    console.log(`🔄 Upgrading ${emptySuperAdmins.length} Super Admin(s) with initial full page_routes...`);
+    for (const adm of emptySuperAdmins) {
+      await prisma.admin.update({
+        where: { id: adm.id },
+        data: { page_routes: [...ALL_PAGE_ROUTE_KEYS] },
+      });
+    }
+    console.log("   ✅ Existing Super Admins updated with all page routes.");
+  }
+
+  // ─── 3. Bootstrap Super Admin if none exists ───
   const existingAdmin = await prisma.admin.findFirst({
     include: {
       members: true,
@@ -15,8 +122,9 @@ async function main() {
 
   if (existingAdmin) {
     console.log(
-      `ℹ️  Database already contains an admin account: ${existingAdmin.members?.name || "Admin"} (${existingAdmin.members?.phone || existingAdmin.members?.email}). Skipping bootstrap.`
+        `ℹ️  Database contains an admin account: ${existingAdmin.members?.name || "Admin"} (${existingAdmin.members?.phone || existingAdmin.members?.email}). Skipping bootstrap.`
     );
+    console.log("✅ Database seeded successfully!");
     return;
   }
 
@@ -36,7 +144,7 @@ async function main() {
   const adminFamily = await prisma.family.create({
     data: {
       status: "ACTIVE",
-      region: "Headquarters",
+      region: "Karamadai",
       address: "Total Transformation Center Church Campus",
       location: null,
       is_deleted: false,
@@ -67,7 +175,8 @@ async function main() {
       password: hashedPassword,
       role: adminRole,
       is_active: true,
-      is_reset: false, // Initial super admin does not need forced password reset
+      is_reset: false,
+      page_routes: [...ALL_PAGE_ROUTE_KEYS],
     },
   });
 
@@ -79,7 +188,6 @@ async function main() {
   console.log(`   Password: ${adminPassword}`);
   console.log(`   Role:     ${newAdmin.role}`);
   console.log("───────────────────────────────────────────────────");
-  console.log("⚠️  Please change the default password after initial login.");
 }
 
 main()

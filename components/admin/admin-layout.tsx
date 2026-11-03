@@ -23,6 +23,18 @@ import { usePathname, useRouter } from "next/navigation";
 import React, { useState, useEffect, useMemo } from "react";
 import { useFamilyCount } from "@/hooks/use-families";
 import { useCurrentUser, getInitials, useAuthActions } from "@/hooks/use-auth";
+import { PAGE_ROUTES } from "@/constants";
+
+// ─── Icon map: resolves icon name strings from PAGE_ROUTES to Lucide components ───
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  LayoutDashboard,
+  Users,
+  HeartHandshake,
+  Wallet,
+  UserPlus,
+  ShieldCheck,
+  SlidersHorizontal,
+};
 
 interface SidebarItem {
   href: string;
@@ -63,31 +75,55 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   };
 
-  // Dynamic sidebar items with live database-driven family count and settings action dot
-  const sidebarItems: SidebarItem[] = useMemo(() => [
-    { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    {
-      href: "/admin/families",
-      label: "Families",
-      icon: Users,
-      badge: familyCount !== undefined ? familyCount.toLocaleString() : undefined,
-    },
-    { href: "/admin/offerings", label: "Offerings", icon: HeartHandshake },
-    { href: "/admin/accounts", label: "Accounts", icon: Wallet },
-    { href: "/admin/new-commers", label: "New Commers", icon: UserPlus, badge: "8 New" },
-    { href: "/admin/admin-management", label: "Admin Management", icon: ShieldCheck },
-    {
-      href: "/admin/dropdown-settings",
-      label: "Dropdown Settings",
-      icon: SlidersHorizontal,
-    },
-    {
+  const [accessDeniedAlert, setAccessDeniedAlert] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("error") === "access_denied";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && accessDeniedAlert) {
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, "", newUrl);
+    }
+  }, [accessDeniedAlert]);
+
+  // Dynamic sidebar items driven by PAGE_ROUTES and the user's granted page keys
+  const sidebarItems: SidebarItem[] = useMemo(() => {
+    const grantedKeys = currentUser?.pageRoutes ?? [];
+
+    const dynamicItems: SidebarItem[] = PAGE_ROUTES
+      .filter((page) => grantedKeys.includes(page.key))
+      .map((page) => ({
+        href: page.href,
+        label: page.label,
+        icon: ICON_MAP[page.icon] ?? LayoutDashboard,
+        badge:
+          page.key === "families"
+            ? familyCount !== undefined
+              ? familyCount.toLocaleString()
+              : undefined
+            : page.key === "new_commers"
+              ? "8 New"
+              : undefined,
+        hasActionDot: undefined,
+      }));
+
+    // "Change Password" is always visible (personal account management, never gated)
+    dynamicItems.push({
       href: "/admin/settings",
       label: "Change Password",
       icon: KeyRound,
+      badge: undefined,
       hasActionDot: Boolean(!isUserLoading && currentUser?.isReset),
-    },
-  ], [familyCount, isUserLoading, currentUser?.isReset]);
+    });
+
+    return dynamicItems;
+  }, [currentUser, familyCount, isUserLoading]);
 
   const handleLogout = async () => {
     try {
@@ -439,6 +475,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Page Content */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6">
+          {/* ─── Access Denied Alert Banner ─── */}
+          {accessDeniedAlert && (
+            <div
+              className={`rounded-2xl p-4 border flex items-center justify-between gap-3 shadow-sm transition-all animate-in fade-in duration-200 ${t(
+                "bg-red-50 border-red-200 text-red-900",
+                "bg-red-950/40 border-red-500/40 text-red-100",
+                "bg-red-950/30 border-red-500/30 text-red-200"
+              )}`}
+            >
+              <div className="flex items-center gap-3">
+                <ShieldAlert className="h-5 w-5 text-red-500 shrink-0" />
+                <span className="text-xs sm:text-sm font-semibold">
+                  Access Denied: You do not possess administrator rights to view that page. Please contact the senior administrator.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAccessDeniedAlert(false)}
+                className="p-1 rounded-lg hover:bg-red-200/50 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 transition-colors"
+                title="Dismiss alert"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
           {/* ─── Mandatory Password Reset Reminder Banner (Dashboard Only & Dismissible) ─── */}
           {currentUser?.isReset && pathname === "/admin/dashboard" && !isBannerDismissed && (
             <div

@@ -54,6 +54,7 @@ export async function GET(
       familyAddress: adm.members.family?.address || null,
       familyRegion: adm.members.family?.region || null,
       isReset: adm.is_reset,
+      pageRoutes: adm.page_routes ?? [],
     };
 
     return NextResponse.json({ success: true, data: formatted });
@@ -84,7 +85,7 @@ export async function PUT(
       );
     }
 
-    const { role, isActive, password } = (body as Partial<UpdateAdminDto>) ?? {};
+    const { role, isActive, password, pageRoutes } = (body as Partial<UpdateAdminDto>) ?? {};
 
     const existing = await prisma.admin.findUnique({
       where: { id },
@@ -118,6 +119,11 @@ export async function PUT(
         }
         updateData.password = await hashPassword(password.trim());
         updateData.is_reset = true; // Setting generated/edited password requires admin to reset
+      }
+
+      // Update page_routes if provided; allows restricting pages for both ADMIN and SUPER ADMIN
+      if (pageRoutes !== undefined) {
+        updateData.page_routes = pageRoutes;
       }
 
       const adminRecord = await tx.admin.update({
@@ -164,6 +170,7 @@ export async function PUT(
       familyAddress: updatedAdmin.members.family?.address || null,
       familyRegion: updatedAdmin.members.family?.region || null,
       isReset: updatedAdmin.is_reset,
+      pageRoutes: updatedAdmin.page_routes ?? [],
     };
 
     return NextResponse.json({

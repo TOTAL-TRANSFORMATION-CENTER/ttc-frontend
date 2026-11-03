@@ -52,6 +52,28 @@ export interface CurrentUser {
   phone?: string | null;
   isActive?: boolean;
   isReset?: boolean;
+  pageRoutes?: string[]; // Array of PageRouteKey strings granted to this admin
+}
+
+export interface AdminItem {
+  id: string;
+  memberId: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  role: string;
+  isActive: boolean;
+  isReset?: boolean;
+  createdAt: string;
+  lastModified: string;
+  churchRole?: string | null;
+  gender?: string | null;
+  age?: number | null;
+  bloodGroup?: string | null;
+  maritalStatus?: string | null;
+  familyAddress?: string | null;
+  familyRegion?: string | null;
+  pageRoutes?: string[];
 }
 
 export interface AdminUser {
@@ -68,12 +90,14 @@ export interface CreateAdminDto {
   memberId: string;
   role: string;
   password: string;
+  pageRoutes?: string[];
 }
 
 export interface UpdateAdminDto {
   role?: string;
   isActive?: boolean;
   password?: string;
+  pageRoutes?: string[];
 }
 
 export interface MemberOption {

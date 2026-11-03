@@ -151,29 +151,6 @@ export interface UpdateFamilyDto {
 }
 
 /**
- * Admin user record shape
- */
-export interface AdminItem {
-  id: string;
-  memberId: string;
-  name: string;
-  phone: string | null;
-  email: string | null;
-  role: string;
-  isActive: boolean;
-  createdAt: string;
-  lastModified: string;
-  churchRole?: string | null;
-  gender?: string | null;
-  age?: number | null;
-  bloodGroup?: string | null;
-  maritalStatus?: string | null;
-  familyAddress?: string | null;
-  familyRegion?: string | null;
-  isReset?: boolean;
-}
-
-/**
  * Shape of family member data returned by backend API (/api/families/[id])
  */
 export interface ApiFamilyMember {

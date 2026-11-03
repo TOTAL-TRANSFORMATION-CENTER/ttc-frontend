@@ -111,3 +111,59 @@ export const ADMIN_MANAGEMENT_ROLES = [
   "MEMBER",
 ] as const;
 export type AdminManagementRole = (typeof ADMIN_MANAGEMENT_ROLES)[number];
+
+// ─── Page-Level Access Control Registry ───
+// Central source-of-truth for all admin dashboard pages.
+// 'key' is stored in admin.page_routes[] in the database.
+// Change Password (/admin/settings) is intentionally excluded — always visible.
+export const PAGE_ROUTES = [
+  {
+    key: "dashboard",
+    label: "Dashboard",
+    href: "/admin/dashboard",
+    icon: "LayoutDashboard",
+  },
+  {
+    key: "families",
+    label: "Families",
+    href: "/admin/families",
+    icon: "Users",
+  },
+  {
+    key: "offerings",
+    label: "Offerings",
+    href: "/admin/offerings",
+    icon: "HeartHandshake",
+  },
+  {
+    key: "accounts",
+    label: "Accounts",
+    href: "/admin/accounts",
+    icon: "Wallet",
+  },
+  {
+    key: "new_commers",
+    label: "New Commers",
+    href: "/admin/new-commers",
+    icon: "UserPlus",
+  },
+  {
+    key: "admin_management",
+    label: "Admin Management",
+    href: "/admin/admin-management",
+    icon: "ShieldCheck",
+  },
+  {
+    key: "dropdown_settings",
+    label: "Dropdown Settings",
+    href: "/admin/dropdown-settings",
+    icon: "SlidersHorizontal",
+  },
+] as const;
+
+export type PageRouteKey = (typeof PAGE_ROUTES)[number]["key"];
+
+/** All page keys — convenience array for SUPER ADMIN default grants */
+export const ALL_PAGE_ROUTE_KEYS: PageRouteKey[] = PAGE_ROUTES.map(
+  (p) => p.key as PageRouteKey
+);

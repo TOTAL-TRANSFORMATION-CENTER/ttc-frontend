@@ -140,6 +140,7 @@ export async function POST(request: NextRequest) {
       phone: member.phone,
       isActive: member.admin.is_active,
       isReset: member.admin.is_reset,
+      pageRoutes: member.admin.page_routes ?? [],
     };
 
     // Generate real-world enterprise standard access and refresh tokens

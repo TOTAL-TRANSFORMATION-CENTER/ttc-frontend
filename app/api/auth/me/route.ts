@@ -76,6 +76,7 @@ export async function GET(request: NextRequest) {
       phone: admin.members.phone,
       isActive: admin.is_active,
       isReset: admin.is_reset,
+      pageRoutes: admin.page_routes ?? [],
     };
 
     const response = NextResponse.json({

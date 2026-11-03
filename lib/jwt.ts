@@ -17,6 +17,7 @@ export interface AuthTokenPayload {
   phone: string | null;
   isActive: boolean;
   isReset?: boolean;
+  pageRoutes?: string[]; // Page keys granted to this admin (empty for SUPER ADMIN — access by role)
   type?: "access" | "refresh";
 }
 

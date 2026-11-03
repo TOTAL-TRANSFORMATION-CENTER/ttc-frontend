@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as jose from "jose";
+import {
+  PAGE_ROUTES_CONFIG,
+  ALWAYS_ACCESSIBLE_PATHS,
+  findMatchedPageRoute,
+} from "@/lib/page-routes-config";
 
 /**
  * Next.js Edge Middleware for Route Protection, Token Verification,
@@ -146,38 +151,66 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // 8. Inject verified user context headers into the request for downstream API routes
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set("x-user-id", String(verifiedPayload.id || ""));
-  requestHeaders.set("x-user-member-id", String(verifiedPayload.memberId || ""));
-  requestHeaders.set("x-user-role", String(verifiedPayload.role || ""));
-  requestHeaders.set("x-user-name", String(verifiedPayload.name || ""));
+  // 8. Page-level access control: check page_routes from JWT for all admins (including Super Admin)
+  const pageRoutes = (verifiedPayload as { pageRoutes?: string[] }).pageRoutes ?? [];
+  const isAlwaysAccessible = ALWAYS_ACCESSIBLE_PATHS.some((p) => pathname.startsWith(p));
 
-  return NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  });
-}
+    if (!isAlwaysAccessible && pathname.startsWith("/admin/")) {
+      const matchedPage = findMatchedPageRoute(pathname);
+      if (matchedPage && !pageRoutes.includes(matchedPage.key)) {
+        if (isApiRoute) {
+          return NextResponse.json(
+            { success: false, message: "Forbidden: Page access denied.", code: 403 },
+            { status: 403 }
+          );
+        }
+        // If user has dashboard access, redirect there; otherwise first allowed page or /admin/settings
+        const targetPath = pageRoutes.includes("dashboard")
+          ? "/admin/dashboard"
+          : (PAGE_ROUTES_CONFIG.find((p) => pageRoutes.includes(p.key))?.href || "/admin/settings");
 
-// ─── Route Matcher ───
-export const config = {
-  matcher: [
-    /*
-     * Match all protected API endpoints:
-     * - /api/admin/:path*
-     * - /api/families/:path*
-     * - /api/members/:path*
-     * - /api/categories/:path*
-     * Match all protected UI pages:
-     * - /admin/:path*
-     * - /dashboard/:path*
-     */
-    "/api/admin/:path*",
-    "/api/families/:path*",
-    "/api/members/:path*",
-    "/api/categories/:path*",
-    "/admin/:path*",
-    "/dashboard/:path*",
-  ],
-};
+        if (pathname === targetPath) {
+          return NextResponse.next();
+        }
+
+        const redirectUrl = new URL(targetPath, request.url);
+        redirectUrl.searchParams.set("error", "access_denied");
+        return NextResponse.redirect(redirectUrl);
+      }
+    }
+
+    // 8. Inject verified user context headers into the request for downstream API routes
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("x-user-id", String(verifiedPayload.id || ""));
+    requestHeaders.set("x-user-member-id", String(verifiedPayload.memberId || ""));
+    requestHeaders.set("x-user-role", String(verifiedPayload.role || ""));
+    requestHeaders.set("x-user-name", String(verifiedPayload.name || ""));
+
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+  }
+
+  // ─── Route Matcher ───
+  export const config = {
+    matcher: [
+      /*
+       * Match all protected API endpoints:
+       * - /api/admin/:path*
+       * - /api/families/:path*
+       * - /api/members/:path*
+       * - /api/categories/:path*
+       * Match all protected UI pages:
+       * - /admin/:path*
+       * - /dashboard/:path*
+       */
+      "/api/admin/:path*",
+      "/api/families/:path*",
+      "/api/members/:path*",
+      "/api/categories/:path*",
+      "/admin/:path*",
+      "/dashboard/:path*",
+    ],
+  };

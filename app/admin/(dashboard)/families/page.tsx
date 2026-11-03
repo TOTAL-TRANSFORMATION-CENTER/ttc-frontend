@@ -150,7 +150,7 @@ export default function FamiliesPage() {
         className: "hidden md:table-cell",
         cell: (family) => (
           <span className="text-xs px-2 py-0.5 rounded-md font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-300/30">
-            {family.region || "Karamadai"}
+            {family.region || "—"}
           </span>
         ),
       },
@@ -647,7 +647,7 @@ export default function FamiliesPage() {
                   <div className="sm:col-span-3 flex items-center gap-1.5 min-w-0">
                     <span className={`font-semibold shrink-0 ${t("text-zinc-500", "text-slate-400", "text-zinc-400")}`}>Region:</span>
                     <span className="font-bold text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-300/30 truncate">
-                      {selectedFamily.region || "Karamadai"}
+                      {selectedFamily.region || "—"}
                     </span>
                   </div>
 

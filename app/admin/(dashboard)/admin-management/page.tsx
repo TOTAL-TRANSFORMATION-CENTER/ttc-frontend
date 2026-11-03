@@ -24,6 +24,7 @@ import {
   Eye,
   EyeOff,
   Key,
+  Layers,
   Loader2,
   Lock,
   Mail,
@@ -41,7 +42,7 @@ import {
 } from "lucide-react";
 import React, { useState, useMemo, useEffect } from "react";
 import type { AdminItem } from "@/types";
-import { ADMIN_MANAGEMENT_ROLES } from "@/constants";
+import { ADMIN_MANAGEMENT_ROLES, PAGE_ROUTES, ALL_PAGE_ROUTE_KEYS } from "@/constants";
 import { generateStrongPassword } from "@/lib/password";
 import {
   useAdmins,
@@ -88,6 +89,7 @@ export default function AdminManagementPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState("");
   const [selectedRole, setSelectedRole] = useState<string>("");
+  const [selectedPageRoutes, setSelectedPageRoutes] = useState<string[]>([]);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -121,11 +123,17 @@ export default function AdminManagementPage() {
 
       const timer = setTimeout(() => {
         setSelectedRole(matched);
+        if (matched === "SUPER ADMIN") {
+          setSelectedPageRoutes([...ALL_PAGE_ROUTE_KEYS]);
+        } else {
+          setSelectedPageRoutes([]);
+        }
       }, 0);
       return () => clearTimeout(timer);
     } else if (!selectedMemberId) {
       const timer = setTimeout(() => {
         setSelectedRole("");
+        setSelectedPageRoutes([]);
       }, 0);
       return () => clearTimeout(timer);
     }
@@ -135,6 +143,7 @@ export default function AdminManagementPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState<AdminItem | null>(null);
   const [editRole, setEditRole] = useState("ADMIN");
+  const [editPageRoutes, setEditPageRoutes] = useState<string[]>([]);
   const [editIsActive, setEditIsActive] = useState<boolean>(true);
   const [editPassword, setEditPassword] = useState("");
   const [editShowPassword, setEditShowPassword] = useState(false);
@@ -149,6 +158,7 @@ export default function AdminManagementPage() {
     setSelectedMemberId("");
     setMemberSearchQuery("");
     setSelectedRole("");
+    setSelectedPageRoutes([]);
     setPassword(generateStrongPassword());
     setShowPassword(true);
     setCopied(false);
@@ -201,6 +211,13 @@ export default function AdminManagementPage() {
       return;
     }
 
+    if (memberDetails?.hasAdminAccount) {
+      setFormError(
+        `An administrator account already exists for ${memberDetails.name}. Duplicating admin accounts is restricted. Please edit their account instead.`
+      );
+      return;
+    }
+
     if (!selectedRole) {
       setFormError("Please select an administrative role.");
       return;
@@ -216,6 +233,7 @@ export default function AdminManagementPage() {
         memberId: selectedMemberId,
         role: selectedRole,
         password: password.trim(),
+        pageRoutes: selectedPageRoutes,
       });
 
       setIsCreateOpen(false);
@@ -232,7 +250,16 @@ export default function AdminManagementPage() {
   const handleOpenEditDialog = (admin: AdminItem) => {
     setEditingAdmin(admin);
     const upper = (admin.role || "").toUpperCase();
-    setEditRole(upper.includes("SUPER") ? "SUPER ADMIN" : upper === "MEMBER" ? "MEMBER" : "ADMIN");
+    const roleVal = upper.includes("SUPER") ? "SUPER ADMIN" : upper === "MEMBER" ? "MEMBER" : "ADMIN";
+    setEditRole(roleVal);
+    // If admin already has pageRoutes, load them; if legacy super admin with empty array, default to all pages
+    const initialPages =
+      admin.pageRoutes && admin.pageRoutes.length > 0
+        ? admin.pageRoutes
+        : roleVal === "SUPER ADMIN"
+          ? [...ALL_PAGE_ROUTE_KEYS]
+          : [];
+    setEditPageRoutes(initialPages);
     setEditIsActive(admin.isActive);
     setEditPassword("");
     setEditShowPassword(false);
@@ -254,6 +281,7 @@ export default function AdminManagementPage() {
           role: editRole,
           isActive: editIsActive,
           password: editPassword.trim() ? editPassword.trim() : undefined,
+          pageRoutes: editPageRoutes,
         },
       });
 
@@ -387,6 +415,46 @@ export default function AdminManagementPage() {
             </Badge>
           );
         },
+      },
+      {
+        accessorKey: "pageRoutes",
+        header: "Page Access",
+        headerClassName: "font-bold text-xs min-w-[170px]",
+        className: "text-xs",
+        cell: (adm) => {
+          const routes = adm.pageRoutes ?? [];
+          const isSuperAdmin = (adm.role || "").toUpperCase() === "SUPER ADMIN";
+            if (routes.length === ALL_PAGE_ROUTE_KEYS.length) {
+              return (
+                <Badge
+                  variant="outline"
+                  className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-500/30 text-[10px] font-semibold"
+                >
+                  All Pages {isSuperAdmin ? "(Super Admin)" : "(Full Access)"}
+                </Badge>
+              );
+            }
+            if (routes.length === 0) {
+              return (
+                <span className="text-[11px] text-zinc-400 italic">No pages assigned</span>
+              );
+            }
+            return (
+              <div className="flex flex-wrap gap-1 max-w-[240px]">
+                {routes.map((rk: string) => {
+                  const page = PAGE_ROUTES.find((p) => p.key === rk);
+                  return (
+                    <span
+                      key={rk}
+                      className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-medium border border-zinc-200 dark:border-zinc-700"
+                    >
+                      {page?.label || rk}
+                    </span>
+                  );
+                })}
+              </div>
+            );
+          },
       },
       {
         accessorKey: "phone",
@@ -737,11 +805,11 @@ export default function AdminManagementPage() {
                   {isLoadingMembers ? "Loading church members..." : "— Choose a church member —"}
                 </option>
                 {members.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
+                    <option key={m.id} value={m.id} disabled={m.hasAdminAccount}>
+                      {m.name} {m.hasAdminAccount ? `— (Already ${m.adminRole || "Admin"})` : ""}
+                    </option>
                 ))}
-              </NativeSelect>
+                  </NativeSelect>
             </div>
 
             {/* Step 2: Member Details Preview Card (Fetched directly from members table) */}
@@ -813,46 +881,142 @@ export default function AdminManagementPage() {
                 </div>
 
                 {memberDetails.hasAdminAccount && (
-                  <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 text-[11px] text-amber-700 dark:text-amber-400 flex items-center gap-1.5 font-medium">
-                    <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-                    <span>
-                      Currently has an admin account (Role: {memberDetails.adminRole || "Admin"}). Submitting will update credentials.
-                    </span>
+                    <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 text-[11px] text-red-600 dark:text-red-400 flex items-center gap-1.5 font-medium">
+                      <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-red-500" />
+                      <span>
+                        An administrator account already exists for {memberDetails.name} (Role: {memberDetails.adminRole || "Admin"}). Duplicating admin accounts is restricted. Please edit their account instead.
+                      </span>
+                    </div>
+                )}
                   </div>
                 )}
-              </div>
-            )}
 
-            {/* Step 3: Role Selection Dropdown (Disabled until choosing a church member) */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
-                <Crown className="h-3.5 w-3.5 text-amber-500" />
-                Role <span className="text-red-500">*</span>
-              </label>
-              <NativeSelect
-                value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value)}
-                disabled={!selectedMemberId}
-                placeholder={!selectedMemberId ? "— Choose a church member first —" : "Select Role"}
-                required
-              >
-                {!selectedRole && (
-                  <option value="" disabled>
-                    {!selectedMemberId ? "— Choose a church member first —" : "Select Role"}
-                  </option>
+                {/* Step 3: Role Selection Dropdown (Disabled until choosing a church member) */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+                    <Crown className="h-3.5 w-3.5 text-amber-500" />
+                    Role <span className="text-red-500">*</span>
+                  </label>
+                  <NativeSelect
+                    value={selectedRole}
+                    onChange={(e) => {
+                      const newRole = e.target.value;
+                      setSelectedRole(newRole);
+                      if (newRole === "SUPER ADMIN") {
+                        setSelectedPageRoutes([...ALL_PAGE_ROUTE_KEYS]);
+                      } else {
+                        setSelectedPageRoutes([]);
+                      }
+                    }}
+                    disabled={!selectedMemberId}
+                    placeholder={!selectedMemberId ? "— Choose a church member first —" : "Select Role"}
+                    required
+                  >
+                    {!selectedRole && (
+                      <option value="" disabled>
+                        {!selectedMemberId ? "— Choose a church member first —" : "Select Role"}
+                      </option>
+                    )}
+                    {roleDropdownOptions.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                  {!selectedMemberId && (
+                    <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
+                      Select a church member above to enable and assign an administrative role.
+                    </p>
+                  )}
+                </div>
+
+                {/* Step 3.5: Page Access Permissions */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+                      <Layers className="h-3.5 w-3.5 text-amber-500" />
+                      Page Access Permissions <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={!selectedMemberId || Boolean(memberDetails?.hasAdminAccount)}
+                        onClick={() => setSelectedPageRoutes([...ALL_PAGE_ROUTE_KEYS])}
+                        className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Select All
+                      </button>
+                      <span className="text-zinc-300 dark:text-zinc-700">|</span>
+                      <button
+                        type="button"
+                        disabled={!selectedMemberId || Boolean(memberDetails?.hasAdminAccount)}
+                        onClick={() => setSelectedPageRoutes([])}
+                        className="text-[11px] font-semibold text-zinc-500 hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`p-3 rounded-xl border grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs ${t(
+                      "border-zinc-200 bg-zinc-50/70",
+                      "border-slate-800 bg-slate-900/40",
+                      "border-zinc-800 bg-zinc-900/40"
+                    )}`}
+                  >
+                    {PAGE_ROUTES.map((page) => {
+                      const isChecked = selectedPageRoutes.includes(page.key);
+                      const isDisabled = !selectedMemberId || Boolean(memberDetails?.hasAdminAccount);
+
+                      return (
+                        <label
+                          key={page.key}
+                          className={`flex items-center gap-2 p-2 rounded-lg border transition-all ${
+                            isDisabled ? "cursor-not-allowed opacity-70" : "cursor-pointer"
+                          } ${
+                            isChecked
+                              ? t(
+                                  "bg-amber-50 border-amber-300 text-amber-950 shadow-xs",
+                                  "bg-amber-950/30 border-amber-500/40 text-amber-200",
+                                  "bg-amber-950/30 border-amber-500/40 text-amber-200"
+                                )
+                              : t(
+                                  "bg-white border-zinc-200 text-zinc-700 hover:border-zinc-300",
+                                  "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700",
+                                  "bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700"
+                                )
+                          }`}
+                        >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      disabled={isDisabled}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedPageRoutes((prev) => [...prev, page.key]);
+                        } else {
+                          setSelectedPageRoutes((prev) => prev.filter((k) => k !== page.key));
+                        }
+                      }}
+                      className="h-4 w-4 rounded text-amber-500 border-zinc-300 focus:ring-amber-500 accent-amber-500 shrink-0"
+                    />
+                    <span className="font-semibold select-none truncate">{page.label}</span>
+                  </label>
+                  );
+                })}
+                </div>
+
+                {selectedRole === "SUPER ADMIN" ? (
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    Super Administrators have all pages checked by default. You can uncheck any page to restrict access.
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    Select which pages this administrator can view in their sidebar menu and access directly (all unchecked by default).
+                  </p>
                 )}
-                {roleDropdownOptions.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </NativeSelect>
-              {!selectedMemberId && (
-                <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
-                  Select a church member above to enable and assign an administrative role.
-                </p>
-              )}
-            </div>
+              </div>
 
             {/* Step 4: Strong Password Generator & Copy Field */}
             <div className="space-y-1.5">
@@ -930,7 +1094,7 @@ export default function AdminManagementPage() {
               </Button>
               <Button
                 type="submit"
-                disabled={createAdminMutation.isPending || !selectedMemberId}
+                disabled={createAdminMutation.isPending || !selectedMemberId || Boolean(memberDetails?.hasAdminAccount)}
                 className="h-9 px-5 py-2 rounded-full bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-sm shadow-xs"
               >
                 {createAdminMutation.isPending ? (
@@ -1004,7 +1168,19 @@ export default function AdminManagementPage() {
                 </label>
                 <NativeSelect
                   value={editRole}
-                  onChange={(e) => setEditRole(e.target.value)}
+                  onChange={(e) => {
+                    const newRole = e.target.value;
+                    setEditRole(newRole);
+                    if (newRole === "SUPER ADMIN") {
+                      setEditPageRoutes([...ALL_PAGE_ROUTE_KEYS]);
+                    } else if (newRole === "ADMIN") {
+                      setEditPageRoutes(
+                        editingAdmin?.pageRoutes && editingAdmin.pageRoutes.length > 0
+                          ? editingAdmin.pageRoutes
+                          : []
+                      );
+                    }
+                  }}
                   required
                 >
                   {ADMIN_MANAGEMENT_ROLES.map((r) => (
@@ -1013,6 +1189,82 @@ export default function AdminManagementPage() {
                     </option>
                   ))}
                 </NativeSelect>
+              </div>
+
+              {/* Page Access Permissions */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+                    <Layers className="h-3.5 w-3.5 text-amber-500" />
+                    Page Access Permissions
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditPageRoutes([...ALL_PAGE_ROUTE_KEYS])}
+                      className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                    >
+                      Select All
+                    </button>
+                    <span className="text-zinc-300 dark:text-zinc-700">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setEditPageRoutes([])}
+                      className="text-[11px] font-semibold text-zinc-500 hover:underline cursor-pointer"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  className={`p-3 rounded-xl border grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs ${t(
+                    "border-zinc-200 bg-zinc-50/70",
+                    "border-slate-800 bg-slate-900/40",
+                    "border-zinc-800 bg-zinc-900/40"
+                  )}`}
+                >
+                  {PAGE_ROUTES.map((page) => {
+                    const isChecked = editPageRoutes.includes(page.key);
+
+                    return (
+                      <label
+                        key={page.key}
+                        className={`flex items-center gap-2 p-2 rounded-lg border transition-all cursor-pointer ${
+                          isChecked
+                            ? t(
+                                "bg-amber-50 border-amber-300 text-amber-950 shadow-xs",
+                                "bg-amber-950/30 border-amber-500/40 text-amber-200",
+                                "bg-amber-950/30 border-amber-500/40 text-amber-200"
+                              )
+                            : t(
+                                "bg-white border-zinc-200 text-zinc-700 hover:border-zinc-300",
+                                "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700",
+                                "bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700"
+                              )
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setEditPageRoutes((prev) => [...prev, page.key]);
+                            } else {
+                              setEditPageRoutes((prev) => prev.filter((k) => k !== page.key));
+                            }
+                          }}
+                          className="h-4 w-4 rounded text-amber-500 border-zinc-300 focus:ring-amber-500 accent-amber-500 shrink-0"
+                        />
+                        <span className="font-semibold select-none truncate">{page.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                  Grant or revoke specific pages this administrator can view in their sidebar menu and access directly (pages can be restricted for both Super Admins and Admins).
+                </p>
               </div>
 
               {/* Status Field: Make User Inactive during Edit */}
@@ -1138,10 +1390,10 @@ export default function AdminManagementPage() {
       <Dialog open={!!adminToDelete} onOpenChange={(open) => !open && setAdminToDelete(null)}>
         <DialogContent
           className={`max-w-md ${t(
-            "bg-white border-zinc-200 text-zinc-900",
-            "bg-slate-900 border-slate-700 text-slate-100",
-            "bg-zinc-950 border-zinc-800 text-zinc-100"
-          )}`}
+                              "bg-white border-zinc-200 text-zinc-900",
+                              "bg-slate-900 border-slate-700 text-slate-100",
+                              "bg-zinc-950 border-zinc-800 text-zinc-100"
+                            )}`}
         >
           <DialogHeader>
             <DialogTitle className="text-lg font-bold font-serif flex items-center gap-2 text-red-600">

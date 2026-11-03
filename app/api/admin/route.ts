@@ -8,7 +8,7 @@ export async function GET() {
   try {
     const admins = await prisma.admin.findMany({
       include: {
-        members: {
+        members: {/*  */
           include: {
             family: {
               select: {
@@ -41,6 +41,7 @@ export async function GET() {
       familyAddress: adm.members.family?.address || null,
       familyRegion: adm.members.family?.region || null,
       isReset: adm.is_reset,
+      pageRoutes: adm.page_routes ?? [],
     }));
 
     return NextResponse.json({
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { memberId, role, password } = (body as Partial<CreateAdminDto>) ?? {};
+    const { memberId, role, password, pageRoutes } = (body as Partial<CreateAdminDto>) ?? {};
 
     // 1. Mandatory field validations
     if (!memberId || !memberId.trim()) {
@@ -119,88 +120,94 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Restrict duplicating admin account if member already has an admin account
+    if (member.admin) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `An administrator account already exists for ${member.name}. Duplicating administrator accounts for the same member is restricted. Please edit the existing administrator account instead.`,
+        },
+        { status: 409 }
+      );
+    }
+
     // 3. Hash password with bcrypt using protective salt rounds & secret key pepper
     const normalizedRole = role.trim().toUpperCase();
     const hashedPassword = await hashPassword(password.trim());
+    const normalizedPageRoutes = pageRoutes ?? [];
 
     const createdAdmin = await prisma.$transaction(async (tx) => {
-      const newAdmin = await tx.admin.upsert({
-        where: { member_id: member.id },
-        create: {
-          member_id: member.id,
-          role: normalizedRole,
-          password: hashedPassword,
-          is_active: true, // "Make the user is_active as true when we create a admin."
-          is_reset: true, // "once we store the generated password for the admin while creation or editing the admin just make this column value as true"
-          created_at: new Date(),
-          last_modified: new Date(),
-        },
-        update: {
-          role: normalizedRole,
-          password: hashedPassword,
-          is_active: true,
-          is_reset: true,
-          last_modified: new Date(),
-        },
-        include: {
-          members: {
-            include: {
-              family: true,
+          const newAdmin = await tx.admin.create({
+            data: {
+              member_id: member.id,
+              role: normalizedRole,
+              password: hashedPassword,
+              is_active: true, // "Make the user is_active as true when we create a admin."
+              is_reset: true, // "once we store the generated password for the admin while creation or editing the admin just make this column value as true"
+              page_routes: normalizedPageRoutes,
+              created_at: new Date(),
+              last_modified: new Date(),
             },
-          },
+            include: {
+              members: {
+                include: {
+                  family: true,
+                },
+              },
+            },
+          });
+
+          // Update the member's role to reflect their admin access
+          await tx.members.update({
+            where: { id: member.id },
+            data: {
+              role: normalizedRole,
+              last_modified: new Date(),
+            },
+          });
+
+          return newAdmin;
+        });
+
+      const responseItem: AdminItem = {
+        id: createdAdmin.id,
+        memberId: createdAdmin.member_id,
+        name: createdAdmin.members.name,
+        phone: createdAdmin.members.phone,
+        email: createdAdmin.members.email,
+        role: createdAdmin.role || role.trim(),
+        isActive: createdAdmin.is_active,
+        isReset: createdAdmin.is_reset,
+        createdAt: createdAdmin.created_at.toISOString(),
+        lastModified: createdAdmin.last_modified.toISOString(),
+        churchRole: createdAdmin.members.church_role || createdAdmin.members.role,
+        gender: createdAdmin.members.gender,
+        age: createdAdmin.members.age,
+        bloodGroup: createdAdmin.members.blood_group,
+        maritalStatus: createdAdmin.members.marital_status,
+        familyAddress: createdAdmin.members.family?.address || null,
+        familyRegion: createdAdmin.members.family?.region || null,
+        pageRoutes: createdAdmin.page_routes ?? [],
+      };
+
+      return NextResponse.json(
+        {
+          success: true,
+          message: `Admin account provisioned successfully for ${createdAdmin.members.name}.`,
+          data: responseItem,
         },
-      });
-
-      // Update the member's role to reflect their admin access
-      await tx.members.update({
-        where: { id: member.id },
-        data: {
-          role: normalizedRole,
-          last_modified: new Date(),
+        { status: 201 }
+      );
+    } catch (error) {
+      const errMessage =
+        error instanceof Error ? error.message : "Failed to create administrator account.";
+      console.error("POST /api/admin error:", error);
+      return NextResponse.json(
+        {
+          success: false,
+          message: errMessage,
         },
-      });
-
-      return newAdmin;
-    });
-
-    const responseItem: AdminItem = {
-      id: createdAdmin.id,
-      memberId: createdAdmin.member_id,
-      name: createdAdmin.members.name,
-      phone: createdAdmin.members.phone,
-      email: createdAdmin.members.email,
-      role: createdAdmin.role || role.trim(),
-      isActive: createdAdmin.is_active,
-      isReset: createdAdmin.is_reset,
-      createdAt: createdAdmin.created_at.toISOString(),
-      lastModified: createdAdmin.last_modified.toISOString(),
-      churchRole: createdAdmin.members.church_role || createdAdmin.members.role,
-      gender: createdAdmin.members.gender,
-      age: createdAdmin.members.age,
-      bloodGroup: createdAdmin.members.blood_group,
-      maritalStatus: createdAdmin.members.marital_status,
-      familyAddress: createdAdmin.members.family?.address || null,
-      familyRegion: createdAdmin.members.family?.region || null,
-    };
-
-    return NextResponse.json(
-      {
-        success: true,
-        message: `Admin account provisioned successfully for ${createdAdmin.members.name}.`,
-        data: responseItem,
-      },
-      { status: 201 }
-    );
-  } catch (error) {
-    const errMessage =
-      error instanceof Error ? error.message : "Failed to create administrator account.";
-    console.error("POST /api/admin error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: errMessage,
-      },
-      { status: 500 }
-    );
+        { status: 500 }
+      );
+    }
   }
-}
