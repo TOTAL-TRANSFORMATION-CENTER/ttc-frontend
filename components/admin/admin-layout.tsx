@@ -10,6 +10,7 @@ import {
   Menu,
   ShieldAlert,
   ShieldCheck,
+  SlidersHorizontal,
   User,
   UserPlus,
   Users,
@@ -73,11 +74,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     },
     { href: "/admin/offerings", label: "Offerings", icon: HeartHandshake },
     { href: "/admin/accounts", label: "Accounts", icon: Wallet },
-    { href: "/admin/new-commers", label: "New commers", icon: UserPlus, badge: "8 New" },
-    { href: "/admin/admin-management", label: "Admin management", icon: ShieldCheck },
+    { href: "/admin/new-commers", label: "New Commers", icon: UserPlus, badge: "8 New" },
+    { href: "/admin/admin-management", label: "Admin Management", icon: ShieldCheck },
+    {
+      href: "/admin/dropdown-settings",
+      label: "Dropdown Settings",
+      icon: SlidersHorizontal,
+    },
     {
       href: "/admin/settings",
-      label: "Change password",
+      label: "Change Password",
       icon: KeyRound,
       hasActionDot: Boolean(!isUserLoading && currentUser?.isReset),
     },
@@ -223,12 +229,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
                   className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150 ${active
-                      ? "bg-amber-500 text-zinc-950 shadow-md font-bold"
-                      : t(
-                        "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950",
-                        "text-slate-300 hover:bg-slate-800/70 hover:text-white",
-                        "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
-                      )
+                    ? "bg-amber-500 text-zinc-950 shadow-md font-bold"
+                    : t(
+                      "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950",
+                      "text-slate-300 hover:bg-slate-800/70 hover:text-white",
+                      "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
+                    )
                     }`}
                 >
                   <div className="flex items-center gap-3">
@@ -247,24 +253,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       >
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
                         <span
-                          className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
-                            active ? "bg-zinc-950 ring-2 ring-amber-400" : "bg-amber-500"
-                          }`}
+                          className={`relative inline-flex rounded-full h-2.5 w-2.5 ${active ? "bg-zinc-950 ring-2 ring-amber-400" : "bg-amber-500"
+                            }`}
                         />
                       </span>
                     )}
 
                     {item.badge && (
                       <span
-                        className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${
-                          active
-                            ? "bg-zinc-950 text-amber-400"
-                            : t(
-                                "bg-zinc-200 text-zinc-700",
-                                "bg-slate-800 text-slate-300",
-                                "bg-zinc-800 text-zinc-300"
-                              )
-                        }`}
+                        className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${active
+                          ? "bg-zinc-950 text-amber-400"
+                          : t(
+                            "bg-zinc-200 text-zinc-700",
+                            "bg-slate-800 text-slate-300",
+                            "bg-zinc-800 text-zinc-300"
+                          )
+                          }`}
                       >
                         {item.badge}
                       </span>

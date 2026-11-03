@@ -174,6 +174,47 @@ export interface AdminItem {
 }
 
 /**
+ * Shape of family member data returned by backend API (/api/families/[id])
+ */
+export interface ApiFamilyMember {
+  id: string;
+  name: string;
+  is_head?: boolean;
+  age?: number | null;
+  dob?: string | null;
+  dom?: string | null;
+  gender?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  blood_group?: string | null;
+  status?: string | null;
+  inactive_reason?: string | null;
+  marital_status?: string | null;
+  is_looking_for_alliance?: boolean;
+  occupation?: string | null;
+  church_role?: string | null;
+  role?: string | null;
+  years_of_marriage?: number | null;
+}
+
+/**
+ * Shape of full family record returned by backend API (/api/families/[id])
+ */
+export interface ApiFamilyRecord {
+  id: string;
+  name?: string | null;
+  location?: string | null;
+  region?: string | null;
+  address?: string | null;
+  status?: Status | string | null;
+  inactive_reason?: string | null;
+  members: ApiFamilyMember[];
+  is_deleted?: boolean;
+  created_at?: string | Date;
+  updated_at?: string | Date;
+}
+
+/**
  * Standard pagination metadata
  */
 export interface PaginationMeta {

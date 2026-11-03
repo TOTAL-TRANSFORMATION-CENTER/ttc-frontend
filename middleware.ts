@@ -168,6 +168,7 @@ export const config = {
      * - /api/admin/:path*
      * - /api/families/:path*
      * - /api/members/:path*
+     * - /api/categories/:path*
      * Match all protected UI pages:
      * - /admin/:path*
      * - /dashboard/:path*
@@ -175,6 +176,7 @@ export const config = {
     "/api/admin/:path*",
     "/api/families/:path*",
     "/api/members/:path*",
+    "/api/categories/:path*",
     "/admin/:path*",
     "/dashboard/:path*",
   ],
