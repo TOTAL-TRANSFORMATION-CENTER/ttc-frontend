@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:local": "dotenv -e .env.local -- next dev",
+    "dev:prod": "dotenv -e .env -- next dev",
     "build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "lint": "eslint",
@@ -11,8 +13,13 @@
     "prepare": "husky",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate deploy",
+    "db:migrate:local": "dotenv -e .env.local -- prisma migrate deploy",
+    "db:push:local": "dotenv -e .env.local -- prisma db push",
+    "db:studio:local": "dotenv -e .env.local -- prisma studio",
+    "db:studio:prod": "dotenv -e .env -- prisma studio",
     "db:status": "prisma migrate status",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "db:seed:local": "dotenv -e .env.local -- prisma db seed"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -48,6 +55,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv-cli": "^11.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "husky": "^9.1.7",
