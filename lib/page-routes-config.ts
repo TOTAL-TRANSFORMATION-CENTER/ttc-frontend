@@ -17,11 +17,13 @@ export interface PageRouteConfig {
 export const PAGE_ROUTES_CONFIG: PageRouteConfig[] = [
   { key: "dashboard",         href: "/admin/dashboard"                                       },
   { key: "families",          href: "/admin/families", additionalPrefixes: ["/admin/family"] },
+  { key: "attendance",        href: "/admin/attendance"                                      },
   { key: "offerings",         href: "/admin/offerings"                                       },
   { key: "accounts",          href: "/admin/accounts"                                        },
   { key: "new_commers",       href: "/admin/new-commers"                                     },
   { key: "admin_management",  href: "/admin/admin-management"                                },
   { key: "dropdown_settings", href: "/admin/dropdown-settings"                               },
+  { key: "feature_settings",  href: "/admin/feature-settings"                                },
 ];
 
 /**

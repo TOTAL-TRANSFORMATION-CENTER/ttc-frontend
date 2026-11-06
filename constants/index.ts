@@ -130,6 +130,12 @@ export const PAGE_ROUTES = [
     icon: "Users",
   },
   {
+    key: "attendance",
+    label: "Attendance",
+    href: "/admin/attendance",
+    icon: "CalendarCheck",
+  },
+  {
     key: "offerings",
     label: "Offerings",
     href: "/admin/offerings",
@@ -159,6 +165,12 @@ export const PAGE_ROUTES = [
     href: "/admin/dropdown-settings",
     icon: "SlidersHorizontal",
   },
+  {
+    key: "feature_settings",
+    label: "Feature Settings",
+    href: "/admin/feature-settings",
+    icon: "ToggleRight",
+  },
 ] as const;
 
 export type PageRouteKey = (typeof PAGE_ROUTES)[number]["key"];
@@ -167,3 +179,21 @@ export type PageRouteKey = (typeof PAGE_ROUTES)[number]["key"];
 export const ALL_PAGE_ROUTE_KEYS: PageRouteKey[] = PAGE_ROUTES.map(
   (p) => p.key as PageRouteKey
 );
+
+// ─── Attendance System Constants ───
+export const ATTENDANCE_SERVICES = [
+  { code: "SERVICE_1", label: "1st Service (07:00 AM - 09:00 AM)", shortLabel: "1st Service" },
+  { code: "SERVICE_2", label: "2nd Service (09:00 AM - 11:00 AM)", shortLabel: "2nd Service" },
+  { code: "SERVICE_3", label: "3rd Service (11:00 AM - 01:00 PM)", shortLabel: "3rd Service" },
+] as const;
+
+export type AttendanceServiceCode = (typeof ATTENDANCE_SERVICES)[number]["code"];
+
+export const PORTAL_MODES = {
+  AUTOMATIC: "AUTOMATIC",
+  FORCE_OPEN: "FORCE_OPEN",
+  FORCE_CLOSED: "FORCE_CLOSED",
+} as const;
+
+export type PortalMode = (typeof PORTAL_MODES)[keyof typeof PORTAL_MODES];
+

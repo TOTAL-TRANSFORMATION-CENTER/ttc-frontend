@@ -3,6 +3,7 @@
 import { useTheme } from "@/components/ttc/theme-provider";
 import ThemeSwitcher from "@/components/ttc/theme-switcher";
 import {
+  CalendarCheck,
   HeartHandshake,
   KeyRound,
   LayoutDashboard,
@@ -11,6 +12,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   SlidersHorizontal,
+  ToggleRight,
   User,
   UserPlus,
   Users,
@@ -29,11 +31,13 @@ import { PAGE_ROUTES } from "@/constants";
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard,
   Users,
+  CalendarCheck,
   HeartHandshake,
   Wallet,
   UserPlus,
   ShieldCheck,
   SlidersHorizontal,
+  ToggleRight,
 };
 
 interface SidebarItem {

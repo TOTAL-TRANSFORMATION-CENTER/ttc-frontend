@@ -25,6 +25,7 @@ const ACCESS_TOKEN_COOKIE = "ttc_access_token";
 const PUBLIC_PATHS = [
   "/admin", // Admin Login Page
   "/login", // Member Login Page
+  "/attendance", // Public QR Attendance Portal
   "/api/auth/login",
   "/api/auth/refresh",
   "/api/auth/logout",
@@ -48,7 +49,9 @@ export async function middleware(request: NextRequest) {
   const isPublicPath =
     PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith("/api/auth/")) ||
     pathname === "/" ||
-    pathname === "/admin";
+    pathname === "/admin" ||
+    pathname.startsWith("/attendance") ||
+    pathname.startsWith("/api/attendance");
 
   // 3. Extract access token from HTTP-only cookie or Authorization header
   let token = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value || null;

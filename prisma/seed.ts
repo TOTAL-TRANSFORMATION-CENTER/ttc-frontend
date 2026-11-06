@@ -94,23 +94,76 @@ async function main() {
   }
   console.log("   ✅ Church Role category & values verified.");
 
-  // ─── 2. Update existing Super Admins with empty page_routes ───
-  const emptySuperAdmins = await prisma.admin.findMany({
-    where: {
-      role: "SUPER ADMIN",
-      page_routes: { isEmpty: true },
+  // C. Church Services Category
+  const serviceCategory = await prisma.categories.upsert({
+    where: { code: "SERVICE" },
+    update: {},
+    create: {
+      code: "SERVICE",
+      name: "Church Services",
+      description: "Sunday and weekday worship services",
     },
   });
 
-  if (emptySuperAdmins.length > 0) {
-    console.log(`🔄 Upgrading ${emptySuperAdmins.length} Super Admin(s) with initial full page_routes...`);
-    for (const adm of emptySuperAdmins) {
-      await prisma.admin.update({
-        where: { id: adm.id },
-        data: { page_routes: [...ALL_PAGE_ROUTE_KEYS] },
+  const defaultServices = [
+    { code: "SERVICE_1", label: "1st Service (07:00 AM - 09:00 AM)", sort_order: 1 },
+    { code: "SERVICE_2", label: "2nd Service (09:00 AM - 11:00 AM)", sort_order: 2 },
+    { code: "SERVICE_3", label: "3rd Service (11:00 AM - 01:00 PM)", sort_order: 3 },
+  ];
+
+  for (const s of defaultServices) {
+    const existingVal = await prisma.category_values.findFirst({
+      where: {
+        category_id: serviceCategory.id,
+        code: s.code,
+      },
+    });
+
+    if (!existingVal) {
+      await prisma.category_values.create({
+        data: {
+          category_id: serviceCategory.id,
+          code: s.code,
+          label: s.label,
+          sort_order: s.sort_order,
+          is_active: true,
+        },
       });
     }
-    console.log("   ✅ Existing Super Admins updated with all page routes.");
+  }
+  console.log("   ✅ Service category & values verified.");
+
+  // D. System Settings
+  await prisma.system_settings.upsert({
+    where: { key: "attendance_portal_mode" },
+    update: {},
+    create: {
+      key: "attendance_portal_mode",
+      value: "AUTOMATIC",
+      description: "Attendance portal mode: AUTOMATIC (Sundays 7am-12am IST), FORCE_OPEN, or FORCE_CLOSED",
+    },
+  });
+  console.log("   ✅ System settings verified.");
+
+  // ─── 2. Update existing Super Admins with latest page_routes ───
+  const superAdmins = await prisma.admin.findMany({
+    where: {
+      role: "SUPER ADMIN",
+    },
+  });
+
+  for (const adm of superAdmins) {
+    const currentRoutes = adm.page_routes || [];
+    // Ensure all current page routes are granted to super admin
+    const missingRoutes = ALL_PAGE_ROUTE_KEYS.filter((key) => !currentRoutes.includes(key));
+    if (currentRoutes.length === 0 || missingRoutes.length > 0) {
+      const mergedRoutes = Array.from(new Set([...currentRoutes, ...ALL_PAGE_ROUTE_KEYS]));
+      await prisma.admin.update({
+        where: { id: adm.id },
+        data: { page_routes: mergedRoutes },
+      });
+      console.log(`   ✅ Super Admin ${adm.id} updated with latest page routes (${mergedRoutes.join(", ")}).`);
+    }
   }
 
   // ─── 3. Bootstrap Super Admin if none exists ───

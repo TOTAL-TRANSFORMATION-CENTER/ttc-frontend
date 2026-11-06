@@ -16,6 +16,7 @@ import {
   Moon,
   Clock,
   Calendar,
+  CalendarCheck,
   MapPin,
   Phone,
   Mail,
@@ -24,6 +25,9 @@ import {
   ChevronRight,
   ExternalLink,
   Navigation,
+  Shield,
+  Radio,
+  LogIn,
 } from "lucide-react";
 import { useTheme } from "@/components/ttc/theme-provider";
 import ThemeSwitcher from "@/components/ttc/theme-switcher";
@@ -242,8 +246,40 @@ const churchActivities: ChurchActivity[] = [
   },
 ];
 
+/**
+ * Attendance Banner Display Mode:
+ * For now, set to true to show the static alert on all days as requested for preview/testing.
+ * Once approved, setting PREVIEW_ATTENDANCE_BANNER_ALL_DAYS = false will strictly restrict
+ * it to Sundays 24-hours IST (00:00 to 23:59:59).
+ */
+const PREVIEW_ATTENDANCE_BANNER_ALL_DAYS = false;
+
+function checkIsSundayIST(): boolean {
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Kolkata",
+      weekday: "short",
+    });
+    return formatter.format(new Date()) === "Sun";
+  } catch {
+    return new Date().getDay() === 0;
+  }
+}
+
 export default function Home() {
   const { theme } = useTheme();
+  const [isSunday, setIsSunday] = useState<boolean>(() => checkIsSundayIST());
+
+  useEffect(() => {
+    // Keep Sunday status synchronized if tab stays open past midnight
+    const timer = setInterval(() => {
+      setIsSunday(checkIsSundayIST());
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const showAttendanceBanner = PREVIEW_ATTENDANCE_BANNER_ALL_DAYS || isSunday;
+
   const [activeTab, setActiveTab] = useState<"all" | "sunday" | "weekday">("all");
 
   useEffect(() => {
@@ -295,72 +331,106 @@ export default function Home() {
       {/* ─── Auto Live Stream Pop-up (when stream is broadcasting) ─── */}
       <LiveStreamModal />
 
-      {/* ─── Navigation ─── */}
-      <motion.nav
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-        className={`fixed top-0 w-full z-50 backdrop-blur-xl border-b transition-colors duration-500 ${t(
-          "bg-white/80 border-zinc-200/80 shadow-xs",
-          "bg-slate-900/80 border-slate-700/60 shadow-md",
-          "bg-zinc-950/80 border-zinc-800/60 shadow-md"
-        )}`}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-3">
-            <Image
-              src="/assets/TTC Logo PNG.png"
-              alt="TTC Logo"
-              width={40}
-              height={40}
-              unoptimized
-              className={`h-9 w-auto object-contain ${t(
-                "",
-                "brightness-0 invert",
-                "brightness-0 invert"
-              )}`}
-            />
-            <div className="flex flex-col">
-              <span
-                className={`font-serif font-bold text-base sm:text-lg leading-tight ${t(
-                  "text-indigo-950",
-                  "text-slate-100",
-                  "text-zinc-50"
-                )}`}
+      {/* ─── Fixed Header (Top Alert Banner + Navigation) ─── */}
+      <header className="fixed top-0 w-full z-50">
+        {/* ─── Sunday Attendance Alert Banner ─── */}
+        {showAttendanceBanner && (
+          <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-zinc-950 font-medium shadow-sm border-b border-amber-600/30">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-3 text-xs sm:text-sm">
+              <Link
+                href="/attendance"
+                className="flex items-center gap-2 group flex-1 mr-2 hover:opacity-90 transition-opacity min-w-0"
               >
-                Total Transformation Ministries
-              </span>
-              <span
-                className={`text-[10px] hidden sm:inline uppercase tracking-widest font-medium ${t(
-                  "text-zinc-500",
-                  "text-slate-400",
-                  "text-zinc-400"
-                )}`}
+                <span className="flex h-2 w-2 relative shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-950 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-zinc-950"></span>
+                </span>
+                <CalendarCheck className="h-4 w-4 shrink-0 text-zinc-950" />
+                <span className="truncate font-medium">
+                  <strong className="font-bold">Sunday Attendance Open:</strong>{" "}
+                  <span className="hidden sm:inline">Tap here to mark family attendance for today&apos;s worship service.</span>
+                  <span className="sm:hidden">Tap here to mark attendance.</span>
+                </span>
+              </Link>
+              <Link
+                href="/attendance"
+                className="shrink-0 inline-flex items-center gap-1 font-bold text-xs bg-zinc-950 text-white hover:bg-zinc-800 px-3 py-1 rounded-full transition-colors shadow-xs"
               >
-                Church &amp; Community Center
-              </span>
+                Check In Now
+                <ArrowRight className="h-3 w-3" />
+              </Link>
             </div>
-          </Link>
-
-          <div className="flex items-center gap-3">
-            <ThemeSwitcher />
-            <Link
-              href="/login"
-              className={`inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-full transition-all duration-200 shadow-sm hover:shadow-md ${t(
-                "bg-indigo-900 text-white hover:bg-indigo-950",
-                "bg-indigo-600 text-white hover:bg-indigo-700",
-                "bg-zinc-100 text-zinc-900 hover:bg-white"
-              )}`}
-            >
-              Sign In
-              <ArrowRight className="h-4 w-4" />
-            </Link>
           </div>
-        </div>
-      </motion.nav>
+        )}
+
+        {/* ─── Main Navbar ─── */}
+        <motion.nav
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className={`w-full backdrop-blur-xl border-b transition-colors duration-500 ${t(
+            "bg-white/80 border-zinc-200/80 shadow-xs",
+            "bg-slate-900/80 border-slate-700/60 shadow-md",
+            "bg-zinc-950/80 border-zinc-800/60 shadow-md"
+          )}`}
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
+            <Link href="/" className="flex items-center gap-3">
+              <Image
+                src="/assets/TTC Logo PNG.png"
+                alt="TTC Logo"
+                width={40}
+                height={40}
+                unoptimized
+                className={`h-9 w-auto object-contain ${t(
+                  "",
+                  "brightness-0 invert",
+                  "brightness-0 invert"
+                )}`}
+              />
+              <div className="flex flex-col">
+                <span
+                  className={`font-serif font-bold text-base sm:text-lg leading-tight ${t(
+                    "text-indigo-950",
+                    "text-slate-100",
+                    "text-zinc-50"
+                  )}`}
+                >
+                  Total Transformation Ministries
+                </span>
+                <span
+                  className={`text-[10px] hidden sm:inline uppercase tracking-widest font-medium ${t(
+                    "text-zinc-500",
+                    "text-slate-400",
+                    "text-zinc-400"
+                  )}`}
+                >
+                  Church &amp; Community Center
+                </span>
+              </div>
+            </Link>
+
+            <div className="flex items-center gap-3">
+              <ThemeSwitcher />
+              <Link
+                href="/login"
+                className={`inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-full transition-all duration-200 shadow-sm hover:shadow-md ${t(
+                  "bg-indigo-900 text-white hover:bg-indigo-950",
+                  "bg-indigo-600 text-white hover:bg-indigo-700",
+                  "bg-zinc-100 text-zinc-900 hover:bg-white"
+                )}`}
+              >
+                Sign In
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </motion.nav>
+      </header>
 
       {/* ─── Hero ─── */}
-      <section className="relative pt-28 sm:pt-36 pb-16 sm:pb-24 px-4 overflow-hidden">
+      <section className={`relative pb-16 sm:pb-24 px-4 overflow-hidden ${showAttendanceBanner ? "pt-36 sm:pt-44" : "pt-28 sm:pt-36"}`}>
+
         {/* Decorative background gradients */}
         <div
           className={`absolute inset-0 ${t(
@@ -1037,25 +1107,46 @@ export default function Home() {
                 <li>
                   <a
                     href="#activities"
-                    className="hover:text-white transition-colors"
+                    className="hover:text-white transition-colors flex items-center gap-2"
                   >
+                    <Calendar className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                     All Activities &amp; Timings
                   </a>
                 </li>
                 <li>
                   <a
                     href="#live-services"
-                    className="hover:text-white transition-colors"
+                    className="hover:text-white transition-colors flex items-center gap-2"
                   >
+                    <Radio className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                     Live Sunday Services
                   </a>
                 </li>
                 <li>
                   <Link
                     href="/login"
-                    className="hover:text-white transition-colors"
+                    className="hover:text-white transition-colors flex items-center gap-2"
                   >
+                    <LogIn className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                     Member Portal Sign In
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/attendance"
+                    className="hover:text-white transition-colors flex items-center gap-2"
+                  >
+                    <CalendarCheck className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                    Sunday Attendance Check-In
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/admin"
+                    className="hover:text-white transition-colors flex items-center gap-2"
+                  >
+                    <Shield className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                    Admin Portal Login
                   </Link>
                 </li>
               </ul>
@@ -1103,11 +1194,11 @@ export default function Home() {
                 <li className="flex items-center gap-2">
                   <Mail className="h-4 w-4 text-indigo-400 shrink-0" />
                   <a
-                    href="mailto:elizadollfus@gmail.com"
+                    href="mailto:taltransformationministries@gmail.com"
                     className="hover:text-white hover:underline transition-colors"
-                    title="Send Email to elizadollfus@gmail.com"
+                    title="Send Email totaltransformationministries@gmail.com"
                   >
-                    elizadollfus@gmail.com
+                    totaltransformationministries@gmail.com
                   </a>
                 </li>
               </ul>
